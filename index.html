@@ -200,20 +200,88 @@ input, select { width: 100%; background: var(--s1); color: var(--text); border: 
 .leg.slot { background: transparent; border-style: dashed; }
 .leg .track { margin-top: 14px; }
 .ticket .buyq span:last-child { font-weight: 600; color: var(--text); }
+/* ── макет «Сигнал» ── */
+#app { background: radial-gradient(90% 40% at 85% 8%, rgba(32,140,128,.16), transparent 70%), radial-gradient(70% 30% at 0% 60%, rgba(32,140,128,.08), transparent 70%), var(--bg); }
+.brand { gap: 10px; }
+.brand .appicon { width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 0 0 1px rgba(45,225,194,.25), 0 0 18px rgba(45,225,194,.18); flex: none; }
+.wm { min-width: 0; }
+.wmt { font-family: var(--display); font-weight: 800; font-size: 23px; letter-spacing: -.3px; line-height: 1; white-space: nowrap;
+  background: linear-gradient(180deg, #ffffff, #b9d2cc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.wmt span { background: linear-gradient(180deg, #ffc27a, #f0801f); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.wm .wtag { font-size: 8px; letter-spacing: 1.1px; line-height: 1.35; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.switch { border-color: rgba(45,225,194,.3); }
+.switch button.active { background: rgba(45,225,194,.14); color: var(--text); box-shadow: inset 0 0 0 1px rgba(45,225,194,.55), 0 0 14px rgba(45,225,194,.2); }
+.round { border-color: rgba(45,225,194,.3); }
+
+/* карточка действия: всегда тёмная, с иллюстрацией актива справа */
+.hcard { position: relative; overflow: hidden; border-radius: 20px; padding: 16px 16px 16px; margin: 4px 0 12px; min-height: 196px;
+  background: linear-gradient(180deg, #0f2326, #0a1719); border: 1px solid rgba(45,225,194,.45);
+  box-shadow: 0 0 0 1px rgba(45,225,194,.08), 0 0 26px rgba(45,225,194,.12) inset; color: #E9EEE6; }
+.hcard.fix { border-color: rgba(242,166,90,.75); box-shadow: 0 0 26px rgba(242,166,90,.16) inset; }
+.hcard.wait { border-color: rgba(239,123,108,.6); }
+.hcard .hart { position: absolute; right: -10px; top: 0; height: 100%; width: 52%; object-fit: cover; object-position: 62% 50%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,.55) 30%, #000 60%); mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,.55) 30%, #000 60%); opacity: .9; }
+.hcard::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10,23,25,.92) 0%, rgba(10,23,25,.75) 50%, rgba(10,23,25,0) 75%); pointer-events: none; }
+.hcard .hbody { position: relative; max-width: 72%; }
+.hstat { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #7fe6cf; }
+.hstat i { width: 9px; height: 9px; border-radius: 50%; background: #2de1c2; box-shadow: 0 0 10px #2de1c2; }
+.hcard.wait .hstat, .hcard.dear .hstat { color: #f2a65a; } .hcard.wait .hstat i, .hcard.dear .hstat i { background: #f2a65a; box-shadow: 0 0 10px #f2a65a; }
+.htitle { font-family: var(--display); font-weight: 800; font-size: 30px; letter-spacing: -.6px; line-height: 1.05; margin: 6px 0 10px; color: #fff; }
+.hcard.fix .htitle { color: #ffb45e; } .hcard.wait .htitle { color: #ff9a8c; }
+.hrow { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; }
+.hrow p { font-size: 14px; line-height: 1.38; color: #d6e2dd; text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+.hrow p b { color: #fff; }
+.hic { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgba(45,225,194,.6); background: rgba(45,225,194,.1); color: #2de1c2; box-shadow: 0 0 12px rgba(45,225,194,.2); }
+.hic.c { border-color: rgba(242,166,90,.7); background: rgba(242,166,90,.12); color: #f59a3c; box-shadow: 0 0 12px rgba(242,166,90,.22); }
+.hic svg { width: 16px; height: 16px; }
+.hnote { font-size: 13px; color: #c7d4cf; margin-top: 10px; line-height: 1.4; text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+.hmore { position: relative; margin-top: 14px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; border: 1px solid rgba(45,225,194,.6);
+  background: rgba(8,22,24,.7); color: #7fe6cf; font-weight: 600; font-size: 12.5px; letter-spacing: .8px; text-transform: uppercase; cursor: pointer; box-shadow: 0 0 14px rgba(45,225,194,.18); }
+
+/* плитки показателей */
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 18px; }
+.tile { min-width: 0; border-radius: 14px; padding: 8px 8px 6px; background: linear-gradient(180deg, rgba(20,40,42,.9), rgba(12,26,28,.9)); border: 1px solid rgba(45,225,194,.22); position: relative; cursor: default; }
+.tile.link { cursor: pointer; }
+.tile .th { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.tile .th svg { width: 18px; height: 18px; flex: none; }
+.tile .tv { font-family: var(--display); font-weight: 700; font-size: 15px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.tile .tc { font-size: 11px; font-weight: 600; }
+.tile .sp { display: block; width: 100%; height: 18px; margin-top: 3px; }
+.tile .chev { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.tile .tl { font-size: 11.5px; line-height: 1.25; color: var(--text); margin-top: 6px; padding-right: 10px; }
+
+/* заголовок вердикта */
+.bigline { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 10.2vw, 44px); letter-spacing: -1.2px; line-height: 1; color: #fff; }
+.bigline span { background: linear-gradient(180deg, #7ff3dc, #20c9a8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.bigline.dear span { background: linear-gradient(180deg, #ffc27a, #f0801f); -webkit-background-clip: text; background-clip: text; color: transparent; }
+body.light .bigline { color: var(--text); }
+#hero-sub { margin-top: 8px; }
+#hero-sub b { color: #7fe6cf; }
+#curve { margin: 8px -6px 4px; }
+
+/* инфо-карточки под графиком */
+.infocards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 4px; }
+.icard { display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; padding: 10px 22px 10px 10px; position: relative; cursor: pointer;
+  background: linear-gradient(180deg, rgba(20,40,42,.9), rgba(12,26,28,.9)); border: 1px solid rgba(45,225,194,.22); }
+.icard .ii { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #2de1c2; background: rgba(45,225,194,.1); box-shadow: 0 0 12px rgba(45,225,194,.15); }
+.icard .ii svg { width: 20px; height: 20px; }
+.icard b { display: block; font-size: 12.5px; line-height: 1.3; color: var(--text); font-weight: 600; }
+.icard span { display: block; font-size: 11.5px; line-height: 1.35; color: var(--muted); margin-top: 3px; }
+.icard .chev { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+
+/* нижнее меню как в макете: подсветка и полоска у активной вкладки */
+#tabbar { border-top: 1px solid rgba(45,225,194,.25); box-shadow: 0 -8px 24px rgba(0,0,0,.35); }
+#tabbar button { position: relative; font-size: 12px; }
+#tabbar button.active svg { color: #2de1c2; filter: drop-shadow(0 0 6px rgba(45,225,194,.6)); }
+#tabbar button.active::after { content: ""; position: absolute; bottom: -2px; left: 22%; right: 22%; height: 2px; border-radius: 2px; background: #2de1c2; box-shadow: 0 0 8px #2de1c2; }
 </style>
 </head>
 <body>
 <div id="app">
   <div id="topbar">
     <div class="brand">
-      <svg class="mark" width="30" height="30" viewBox="0 0 432 432" aria-hidden="true">
-        <rect width="432" height="432" rx="96" fill="var(--s2)"/>
-        <clipPath id="tl"><rect x="0" y="0" width="163" height="432"/><rect x="269" y="0" width="163" height="432"/></clipPath>
-        <path d="M116 282C166 282 178 122 216 122S266 282 316 282Z" fill="var(--ember)" opacity=".55" clip-path="url(#tl)"/>
-        <path d="M116 282C166 282 178 122 216 122S266 282 316 282" fill="none" stroke="var(--text)" stroke-width="28" stroke-linecap="round"/>
-        <path d="M116 282C166 282 178 122 216 122S266 282 316 282" fill="none" stroke="var(--ember)" stroke-width="28" stroke-linecap="round" clip-path="url(#tl)"/>
-      </svg>
-      <b data-i18n="app_name">Хвостовой риск</b>
+      <img class="appicon" src="icon-192.png" alt="">
+      <div class="wm"><div class="wmt">TAIL <span>RISK</span></div><div class="wtag" data-i18n="tagline">See the risk. Manage your capital.</div></div>
     </div>
     <div class="switch" id="asset-seg">
       <button data-asset="ETH" onclick="setAsset('ETH')">ETH</button>
@@ -228,22 +296,20 @@ input, select { width: 100%; background: var(--s1); color: var(--text); border: 
     <!-- ══ СИГНАЛ ══ -->
     <div class="screen" id="scr-signal">
       <div id="sig-banner"></div>
-      <div class="hero">
-        <div class="chips"><span class="chip" id="spot-badge">—</span><span class="chip" id="dvol-chip">DVOL —</span><span class="chip" id="rec-params">—</span></div>
-        <h1 id="hero-title" data-i18n="loading">Загрузка…</h1>
-        <p class="lead" id="hero-sub"></p>
-        <div id="curve"></div>
-        <div class="tails" id="curve-tails"></div>
-      </div>
+      <div class="tiles" id="sig-tiles"></div>
+      <h1 class="bigline" id="hero-title"></h1>
+      <p class="lead" id="hero-sub"></p>
+      <div id="curve"></div>
+      <div class="infocards" id="sig-info"></div>
 
-      <section class="block">
+      <section class="block" id="where-buy">
         <h2><span data-i18n="where_buy">Где купить дешевле</span><small id="rec-budget"></small></h2>
         <div class="tickets" id="rec-exch"></div>
         <div class="callout plain" id="exch-verdict">—</div>
         <p class="note" data-i18n="rec_note">Цена покупки — по аску, с комиссией биржи. Ордера ставишь на бирже сам.</p>
       </section>
 
-      <section class="block">
+      <section class="block" id="vol-year">
         <h2 data-i18n="vol_year">Волатильность за год</h2>
         <div class="gauge" id="dvol-gauge"><div class="bar"></div></div>
         <div class="gauge-l" id="dvol-gauge-l"></div>
@@ -493,6 +559,11 @@ const I18N = {
     st_cycles: 'Закрытых циклов', st_win: 'Винрейт', st_best: 'Лучший', st_roi: 'Доходность на вложенное', st_dd: 'Просадка',
     st_avgcost: 'Средняя стоимость входа', st_avgdays: 'Средняя длительность цикла',
     st_vol_split: 'Низкая вола против высокой', st_low: 'Вход при DVOL ниже средней', st_high: 'Вход при DVOL выше средней', st_unknown: 'DVOL неизвестен',
+    tagline: 'Видишь риск — управляешь капиталом', stat_cheap: 'DVOL ниже средней', stat_dear: 'DVOL выше средней', more: 'Подробнее',
+    co_below: 'шанс, что {a} будет', co_below2: 'ниже {k} к {date}', co_above: 'шанс, что {a} будет', co_above2: 'выше {k} к {date}',
+    budget_short: 'вход {b}', tile_stats: 'Итоги стратегии', tile_open: 'открыто сторон: {n}', tile_none: 'нет позиций',
+    ic_curve_title: 'Как читать колокол', ic_curve_sub: 'Распределение цены к экспирации по DVOL. Хвосты — зона прибыли.',
+    ic_ex_title: 'Дешевле на {ex}', ic_ex_sub: 'Стрэнгл {u}, экономия {p}.',
     privacy: 'Политика конфиденциальности', terms: 'Условия использования', deletion: 'Удаление данных',
     puts: 'путы', calls: 'колы', and: ' и ', buy_qty: 'Купить', total: 'Итого',
     ban_fix_title: 'Закрыть {side}', ban_fix_line: 'Продай {q} {a} ({leg}) по бид {bid} — цель ×{tp} достигнута.',
@@ -588,6 +659,11 @@ const I18N = {
     st_cycles: 'Closed cycles', st_win: 'Win rate', st_best: 'Best', st_roi: 'Return on cost', st_dd: 'Drawdown',
     st_avgcost: 'Average entry cost', st_avgdays: 'Average cycle length',
     st_vol_split: 'Low vol vs high vol', st_low: 'Entered with DVOL below average', st_high: 'Entered with DVOL above average', st_unknown: 'DVOL unknown',
+    tagline: 'See the risk. Manage your capital.', stat_cheap: 'DVOL below average', stat_dear: 'DVOL above average', more: 'Details',
+    co_below: 'chance {a} ends', co_below2: 'below {k} by {date}', co_above: 'chance {a} ends', co_above2: 'above {k} by {date}',
+    budget_short: 'entry {b}', tile_stats: 'Strategy results', tile_open: 'open sides: {n}', tile_none: 'no positions',
+    ic_curve_title: 'Reading the bell', ic_curve_sub: 'Price distribution at expiry from DVOL. Tails are the profit zone.',
+    ic_ex_title: 'Cheaper on {ex}', ic_ex_sub: 'Strangle {u}, {p} less.',
     privacy: 'Privacy policy', terms: 'Terms of service', deletion: 'Data deletion',
     puts: 'puts', calls: 'calls', and: ' and ', buy_qty: 'Buy', total: 'Total',
     ban_fix_title: 'Close the {side}', ban_fix_line: 'Sell {q} {a} ({leg}) at bid {bid} — the ×{tp} target is reached.',
@@ -661,7 +737,7 @@ const S = {
   delivery: {},                           // asset → { 'YYYY-MM-DD': price }
   lastSync: { bybit: 0, deribit: 0 },
   push: { fcmId: null, sent: '' },
-  bal: {}, balErr: {},                    // exch → { usd, ts } — депозит с бирж
+  bal: {}, balErr: {}, t24: {},                    // exch → { usd, ts } — депозит с бирж
 };
 
 function lsGet(k, def) { try { const v = localStorage.getItem(LS + k); return v === null ? def : JSON.parse(v); } catch (e) { return def; } }
@@ -1299,73 +1375,161 @@ function drawLine(canvas, pts, opts) {
   if (opts.labels) { c.fillText(opts.labels[0], 0, h - 2); const r = opts.labels[1]; c.fillText(r, w - c.measureText(r).width, h - 2); }
 }
 
-// Колокол: логнормальное распределение цены на дату экспирации по текущему DVOL.
-// Хвосты за страйками стрэнгла закрашены — это то, что покупает стратегия.
-function curveSvg(S0, sigma, T, kp, kc) {
-  const W = 340, H = 150, base = 128;
+// ── Колокол в стиле макета: свечение, выноски с вероятностями, ценники ──
+function curveSvg(S0, sigma, T, kp, kc, a, date) {
+  const W = 360, H = 286, base = 230, top = 118;
   const sd = sigma * Math.sqrt(T), mu = Math.log(S0) - 0.5 * sd * sd;
-  const lo = Math.exp(mu - 3.4 * sd), hi = Math.exp(mu + 3.4 * sd);
+  const lo = Math.exp(mu - 3.2 * sd), hi = Math.exp(mu + 3.2 * sd);
   const pdf = x => Math.exp(-Math.pow(Math.log(x) - mu, 2) / (2 * sd * sd)) / (x * sd * Math.sqrt(2 * Math.PI));
-  const N = 160, xs = [];
+  const N = 180, xs = [];
   for (let i = 0; i <= N; i++) xs.push(lo + (hi - lo) * i / N);
   const peak = Math.max(...xs.map(pdf));
-  const X = x => (x - lo) / (hi - lo) * W, Y = y => base - y / peak * (base - 12);
-  const line = xs.map((x, i) => (i ? 'L' : 'M') + X(x).toFixed(1) + ' ' + Y(pdf(x)).toFixed(1)).join(' ');
-  const area = (a, b) => {
-    const seg = xs.filter(x => x >= a && x <= b); if (seg.length < 2) return '';
-    return 'M' + X(seg[0]).toFixed(1) + ' ' + base + ' ' + seg.map(x => 'L' + X(x).toFixed(1) + ' ' + Y(pdf(x)).toFixed(1)).join(' ') + ' L' + X(seg[seg.length - 1]).toFixed(1) + ' ' + base + ' Z';
+  const X = x => 6 + (x - lo) / (hi - lo) * (W - 12), Y = y => base - y / peak * (base - top);
+  const f = v => v.toFixed(1);
+  const line = xs.map((x, i) => (i ? 'L' : 'M') + f(X(x)) + ' ' + f(Y(pdf(x)))).join(' ');
+  const area = (p, q) => {
+    const s = xs.filter(x => x >= p && x <= q); if (s.length < 2) return '';
+    return 'M' + f(X(s[0])) + ' ' + base + ' ' + s.map(x => 'L' + f(X(x)) + ' ' + f(Y(pdf(x)))).join(' ') + ' L' + f(X(s[s.length - 1])) + ' ' + base + ' Z';
   };
-  const mark = (k, anchor) => k > lo && k < hi
-    ? '<line x1="' + X(k).toFixed(1) + '" x2="' + X(k).toFixed(1) + '" y1="' + (base + 4) + '" y2="' + (Y(pdf(k)) - 8).toFixed(1) + '" stroke="var(--ember)" stroke-width="1.5"/>' +
-      '<text x="' + X(k).toFixed(1) + '" y="' + (base + 18) + '" text-anchor="' + anchor + '" fill="var(--ember)" font-size="12" font-weight="600">' + fmtNum(k) + '</text>' : '';
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(tr('curve_note')) + '">' +
-    '<path d="' + area(lo, hi) + '" fill="var(--s2)"/>' +
-    '<path d="' + area(lo, kp) + '" fill="var(--ember)" opacity=".85"/>' +
-    '<path d="' + area(kc, hi) + '" fill="var(--ember)" opacity=".85"/>' +
-    '<path d="' + line + '" fill="none" stroke="var(--muted)" stroke-width="1.5"/>' +
-    '<line x1="0" x2="' + W + '" y1="' + base + '" y2="' + base + '" stroke="var(--line)"/>' +
-    '<line x1="' + X(S0).toFixed(1) + '" x2="' + X(S0).toFixed(1) + '" y1="' + base + '" y2="' + (Y(pdf(S0)) - 6).toFixed(1) + '" stroke="var(--text)" stroke-dasharray="2 3"/>' +
-    '<text x="' + X(S0).toFixed(1) + '" y="' + (base + 18) + '" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">' + fmtNum(S0) + '</text>' +
-    mark(kp, 'end') + mark(kc, 'start') + '</svg>';
+  const seg = (p, q) => { const s = xs.filter(x => x >= p && x <= q); return s.length < 2 ? '' : s.map((x, i) => (i ? 'L' : 'M') + f(X(x)) + ' ' + f(Y(pdf(x)))).join(' '); };
+  const pP = probBeyond(S0, kp, sigma, T, 'P') * 100, pC = probBeyond(S0, kc, sigma, T, 'C') * 100;
+  const pill = (cx, cy, txt, col, bg) => {
+    const w = txt.length * 7.4 + 22, x = Math.max(2, Math.min(W - w - 2, cx - w / 2));
+    return '<rect x="' + f(x) + '" y="' + (cy - 12) + '" width="' + f(w) + '" height="24" rx="12" fill="' + bg + '" stroke="' + col + '" stroke-opacity=".7"/>' +
+      '<text x="' + f(x + w / 2) + '" y="' + (cy + 4.5) + '" text-anchor="middle" font-size="13" font-weight="700" fill="' + col + '">' + txt + '</text>';
+  };
+  const callout = (bx, pct, l1, l2, px, py) => {
+    const bw = 146, bh = 64, by = 8, ax = bx < W / 2 ? bx + 60 : bx + bw - 60;
+    return '<line x1="' + ax + '" y1="' + (by + bh) + '" x2="' + f(px) + '" y2="' + f(py) + '" stroke="#f59a3c" stroke-width="1.2" opacity=".85"/>' +
+      '<circle cx="' + f(px) + '" cy="' + f(py) + '" r="4.5" fill="#ffc27a" filter="url(#gl)"/>' +
+      '<rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="10" fill="rgba(14,24,26,.92)" stroke="#f59a3c" stroke-opacity=".7"/>' +
+      '<text x="' + (bx + 10) + '" y="' + (by + 24) + '" font-size="21" font-weight="800" fill="#f8a64a">' + fmtPct(pct, 1) + '</text>' +
+      '<text x="' + (bx + 10) + '" y="' + (by + 41) + '" font-size="10.5" fill="#d6e2dd">' + esc(l1) + '</text>' +
+      '<text x="' + (bx + 10) + '" y="' + (by + 55) + '" font-size="10.5" fill="#d6e2dd">' + esc(l2) + '</text>';
+  };
+  const yP = Y(pdf(kp)), yC = Y(pdf(kc));
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(tr('curve_note')) + '" style="width:100%;height:auto;display:block;overflow:visible;font-family:var(--display)">' +
+    '<defs><linearGradient id="tf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2de1c2" stop-opacity=".5"/><stop offset="1" stop-color="#2de1c2" stop-opacity=".02"/></linearGradient>' +
+    '<linearGradient id="of" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f59a3c" stop-opacity=".85"/><stop offset="1" stop-color="#f59a3c" stop-opacity=".15"/></linearGradient>' +
+    '<filter id="gl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>' +
+    '<path d="' + area(kp, kc) + '" fill="url(#tf)"/>' +
+    '<path d="' + area(lo, kp) + '" fill="url(#of)"/><path d="' + area(kc, hi) + '" fill="url(#of)"/>' +
+    '<line x1="0" x2="' + W + '" y1="' + base + '" y2="' + base + '" stroke="#2de1c2" stroke-opacity=".35"/>' +
+    '<path d="' + seg(kp, kc) + '" fill="none" stroke="#7ff3dc" stroke-width="2.6" filter="url(#gl)"/>' +
+    '<path d="' + seg(lo, kp) + '" fill="none" stroke="#ffb45e" stroke-width="2.6" filter="url(#gl)"/>' +
+    '<path d="' + seg(kc, hi) + '" fill="none" stroke="#ffb45e" stroke-width="2.6" filter="url(#gl)"/>' +
+    '<line x1="' + f(X(S0)) + '" x2="' + f(X(S0)) + '" y1="' + base + '" y2="' + f(Y(pdf(S0)) - 2) + '" stroke="#bff7ec" stroke-dasharray="4 4" opacity=".8"/>' +
+    callout(4, pP, tr('co_below', { a }), tr('co_below2', { k: fmtNum(kp), date }), X(kp), yP) +
+    callout(W - 150, pC, tr('co_above', { a }), tr('co_above2', { k: fmtNum(kc), date }), X(kc), yC) +
+    pill(X(S0), Y(pdf(S0)) - 18, fmtNum(S0), '#7ff3dc', 'rgba(10,30,30,.92)') +
+    pill(X(kp), base + 22, fmtNum(kp), '#f8a64a', 'rgba(26,18,10,.9)') +
+    pill(X(kc), base + 22, fmtNum(kc), '#f8a64a', 'rgba(26,18,10,.9)') +
+    '</svg>';
 }
-// Риск-нейтральная вероятность оказаться за страйком к экспирации
 function probBeyond(S0, K, sigma, T, cp) {
   const sd = sigma * Math.sqrt(T); if (!(sd > 0)) return NaN;
   const d2 = (Math.log(S0 / K) - 0.5 * sd * sd) / sd;
   return cp === 'C' ? normCDF(d2) : normCDF(-d2);
 }
+// Мини-график для плиток
+function sparkSvg(vals, col) {
+  if (!vals || vals.length < 2) return '<svg class="sp"></svg>';
+  const mn = Math.min(...vals), mx = Math.max(...vals), w = 100, h = 18;
+  const d = vals.map((v, i) => (i ? 'L' : 'M') + (i / (vals.length - 1) * w).toFixed(1) + ' ' + (h - 2 - (v - mn) / (mx - mn || 1) * (h - 4)).toFixed(1)).join(' ');
+  return '<svg class="sp" viewBox="0 0 100 18" preserveAspectRatio="none"><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="1.6" vector-effect="non-scaling-stroke" style="filter:drop-shadow(0 0 3px ' + col + ')"/></svg>';
+}
+const ICON = {
+  ETH: '<svg viewBox="0 0 24 24"><path d="M12 2l6 10-6 3.6L6 12z" fill="#8fb6ff"/><path d="M12 2v13.6L6 12z" fill="#c9dbff"/><path d="M12 16.8l6-3.6-6 8.8-6-8.8z" fill="#5d86e8"/></svg>',
+  BTC: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#f7931a"/><text x="12" y="16.5" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" font-family="Arial">₿</text></svg>',
+  pulse: '<svg viewBox="0 0 24 24" fill="none" stroke="#2de1c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2-5 4 10 2-5h8"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="#2de1c2" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  trend: '<svg viewBox="0 0 24 24" fill="none" stroke="#2de1c2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>',
+  target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>',
+  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 14l6 6 6-6"/></svg>',
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4M6 10l6-6 6 6"/></svg>',
+  chev: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+};
 
-// ═══════════════════════════════════════════════════
-// ЭКРАНЫ
-// ═══════════════════════════════════════════════════
+// ── Карточка действия (баннер) в стиле макета ──
+function bannerHtml(plan, a, withMore) {
+  const by = st => plan.sides.filter(x => x.state === st);
+  const fix = by('fix'), buy = by('buy').concat(by('short')), wait = by('wait'), open = plan.sides.filter(x => x.cycle);
+  const rows = [];
+  for (const x of plan.sides) {
+    const Side = '<b>' + sideName(x.side, true) + '</b>';
+    let t = null;
+    if (x.state === 'fix') { const l = x.hit.leg; t = '<b>' + sideName(x.side, true) + ':</b> ' + tr('ban_fix_line', { leg: legTitle(l).toLowerCase(), q: fmtQty(l.qty), a, bid: fmtUsd(l.q.bid, 2), tp: S.cfg.tp }); }
+    else if (x.state === 'work') t = tr('ban_work_line', { Side, m: fmtMult(x.mult), tp: S.cfg.tp });
+    else if (x.state === 'settle') t = tr('ban_settle', { Side });
+    else if (x.state === 'buy') t = tr('ban_buy_line', { Side, q: fmtQty(x.r.qty), a, k: fmtNum(x.r.q.strike), exp: isoToExp(x.rec.iso), ex: exName(x.rec.exch), cost: fmtUsd(x.r.total, 2) });
+    else if (x.state === 'short') t = tr('ban_short_line', { Side, m: x.r.min, a, b: fmtUsd(budget() / 2, 0) });
+    else if (x.state === 'noquotes') t = tr('ban_noquotes', { Side });
+    if (t) rows.push('<div class="hrow"><span class="hic ' + (x.side === 'C' ? 'c' : '') + '">' + (x.side === 'C' ? ICON.up : ICON.down) + '</span><p>' + t + '</p></div>');
+  }
+  const names = arr => arr.map(x => sideName(x.side)).join(tr('and'));
+  let tone, title;
+  if (fix.length) { tone = 'fix'; title = tr('ban_fix_title', { side: names(fix) }); }
+  else if (buy.length) { tone = 'buy'; title = open.length ? tr('ban_buy_title', { side: names(buy) }) : tr('ban_entry_title'); }
+  else if (wait.length && !open.length) { tone = 'wait'; title = tr('ban_wait_title'); }
+  else if (open.length) { tone = 'work'; title = tr('ban_work_title'); }
+  else { tone = 'work'; title = tr('loading'); }
+  const st = plan.st;
+  const stat = st ? '<div class="hstat"><i></i>' + tr(st.cheap ? 'stat_cheap' : 'stat_dear') + '</div>' : '';
+  return '<div class="hcard ' + tone + (st && !st.cheap ? ' dear' : '') + '" role="status">' +
+    '<img class="hart" src="art-' + a.toLowerCase() + '.jpg" alt="">' +
+    '<div class="hbody">' + stat + '<h2 class="htitle">' + esc(title) + '</h2>' + rows.join('') +
+    (wait.length ? '<p class="hnote">' + tr('ban_wait_line') + '</p>' : '') +
+    (withMore ? '<button class="hmore" onclick="goTab(\'position\')">' + tr('more') + ICON.arrow + '</button>' : '') +
+    '</div></div>';
+}
+function fmtQty(q) { return String(+(+q).toFixed(4)); }
+
 function renderSignal() {
-  const a = S.asset, st = dvolStats(S.dvol[a]), S0 = S.spot[a];
-  $('sig-banner').innerHTML = bannerHtml(makePlan(a), a);
-  $('spot-badge').innerHTML = S0 ? a + ' <b>' + fmtUsd(S0, 0) + '</b>' : a;
-  $('dvol-chip').innerHTML = st ? 'DVOL <b>' + st.cur.toFixed(1) + '</b>' : 'DVOL';
-  $('rec-params').innerHTML = '±' + S.cfg.otm + '%, ~' + S.cfg.dte + ' ' + tr('days');
+  const a = S.asset, st = dvolStats(S.dvol[a]), S0 = S.spot[a], plan = makePlan(a);
+  $('sig-banner').innerHTML = bannerHtml(plan, a, true);
+
+  // плитки: цена, DVOL, параметры, итоги
+  const t24 = S.t24[a] || {}, ds = S.dvol[a] || [];
+  const dChg = ds.length > 1 ? (ds[ds.length - 1].close / ds[ds.length - 2].close - 1) * 100 : null;
+  const sgn = v => v === null || v === undefined || !isFinite(v) ? '' : '<span class="tc ' + (v >= 0 ? 'gain' : 'loss') + '">' + (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + '%</span>';
+  const open = plan.sides.filter(x => x.cycle);
+  $('sig-tiles').innerHTML =
+    '<div class="tile"><div class="th">' + ICON[a] + a + '</div><div class="tv">' + (S0 ? fmtUsd(S0, 0) : '—') + '</div>' + sgn(t24.chg) + sparkSvg(t24.spark, '#2de1c2') + '</div>' +
+    '<div class="tile"><div class="th">' + ICON.pulse + 'DVOL</div><div class="tv">' + (st ? st.cur.toFixed(1) : '—') + '</div>' + sgn(dChg) + sparkSvg(ds.slice(-30).map(x => x.close), st && !st.cheap ? '#f59a3c' : '#2de1c2') + '</div>' +
+    '<div class="tile link" onclick="goTab(\'settings\')"><div class="th">' + ICON.clock + '</div><div class="tv">±' + S.cfg.otm + '%</div><div class="tc muted">~' + S.cfg.dte + ' ' + tr('days') + '</div><div class="tc muted">' + tr('budget_short', { b: fmtUsd(budget(), 0) }) + '</div></div>' +
+    '<div class="tile link" onclick="goTab(\'stats\')"><div class="th">' + ICON.trend + '</div><div class="tl">' + tr('tile_stats') + '</div><div class="tc muted" style="margin-top:4px">' + (open.length ? tr('tile_open', { n: open.length }) : tr('tile_none')) + '</div><span class="chev">' + ICON.chev + '</span></div>';
+
+  // вердикт
   const h1 = $('hero-title'), sub = $('hero-sub');
   if (st) {
-    h1.textContent = tr(st.cheap ? 'hero_cheap' : 'hero_dear'); h1.className = st.cheap ? 'cheap' : 'dear';
+    const w = tr(st.cheap ? 'hero_cheap' : 'hero_dear').split(' ');
+    h1.innerHTML = esc(w[0]) + ' <span>' + esc(w.slice(1).join(' ')) + '</span>'; h1.className = 'bigline' + (st.cheap ? '' : ' dear');
     sub.innerHTML = tr(st.cheap ? 'hero_sub_cheap' : 'hero_sub_dear', { cur: st.cur.toFixed(1), mean: st.mean.toFixed(1), d: Math.abs(st.cur - st.mean).toFixed(1) });
-  } else { h1.textContent = S.dvol[a] === null ? tr('na') : tr('hero_wait'); h1.className = ''; sub.textContent = S.dvol[a] === null ? tr('vol_err') : ''; }
+  } else { h1.textContent = S.dvol[a] === null ? tr('na') : tr('hero_wait'); h1.className = 'bigline'; sub.textContent = S.dvol[a] === null ? tr('vol_err') : ''; }
 
-  // рекомендация на двух биржах
+  // рекомендации бирж (для колокола и сравнения)
   const recs = ['bybit', 'deribit'].map(ex => recommend(ex, a));
   const ok = recs.filter(r => r && !r.empty);
   const best = ok.length === 2 ? (ok[0].unit <= ok[1].unit ? ok[0] : ok[1]) : ok[0];
-
-  // колокол по лучшей рекомендации (или по целевым страйкам, если котировок нет)
   if (st && S0) {
     const days = best ? best.days : S.cfg.dte, T = days / 365, sig = st.cur / 100;
     const kp = best ? best.put.strike : S0 * (1 - S.cfg.otm / 100), kc = best ? best.call.strike : S0 * (1 + S.cfg.otm / 100);
-    $('curve').innerHTML = curveSvg(S0, sig, T, kp, kc);
-    const date = best ? isoToExp(best.iso) : '+' + days + ' ' + tr('days');
-    $('curve-tails').innerHTML =
-      '<div class="tail"><b>' + fmtPct(probBeyond(S0, kp, sig, T, 'P') * 100, 1) + '</b>' + esc(tr('tail_left', { a, k: fmtNum(kp), date })) + '</div>' +
-      '<div class="tail"><b>' + fmtPct(probBeyond(S0, kc, sig, T, 'C') * 100, 1) + '</b>' + esc(tr('tail_right', { a, k: fmtNum(kc), date })) + '</div>';
-  } else { $('curve').innerHTML = ''; $('curve-tails').innerHTML = ''; }
+    $('curve').innerHTML = curveSvg(S0, sig, T, kp, kc, a, best ? isoToExp(best.iso) : '+' + Math.round(days) + ' ' + tr('days'));
+  } else $('curve').innerHTML = '';
 
+  // инфо-карточки
+  let exTitle = tr('loading'), exSub = '';
+  if (ok.length === 2) {
+    const other = best === ok[0] ? ok[1] : ok[0], pct = (other.unit - best.unit) / other.unit * 100;
+    exTitle = tr('ic_ex_title', { ex: exName(best.exch) }); exSub = tr('ic_ex_sub', { u: fmtUsd(best.unit, 2), p: fmtPct(Math.max(0, pct), 0) });
+  } else if (ok.length === 1) { exTitle = tr('ic_ex_title', { ex: exName(ok[0].exch) }); exSub = tr('one_ex', { ex: exName(ok[0].exch) }); }
+  $('sig-info').innerHTML =
+    '<div class="icard" onclick="document.getElementById(\'vol-year\').scrollIntoView({behavior:\'smooth\'})"><span class="ii">' + ICON.shield + '</span><div><b>' + tr('ic_curve_title') + '</b><span>' + tr('ic_curve_sub') + '</span></div><span class="chev">' + ICON.chev + '</span></div>' +
+    '<div class="icard" onclick="document.getElementById(\'where-buy\').scrollIntoView({behavior:\'smooth\'})"><span class="ii">' + ICON.target + '</span><div><b>' + exTitle + '</b><span>' + exSub + '</span></div><span class="chev">' + ICON.chev + '</span></div>';
+
+  // ниже — сравнение бирж и волатильность за год (как раньше)
   const bud = budget(), dep = deposit();
   $('rec-budget').textContent = tr('budget_of', { b: fmtUsd(bud, 0), d: fmtUsd(dep.usd, 0) });
   $('rec-exch').innerHTML = recs.map((r, i) => {
@@ -1388,17 +1552,25 @@ function renderSignal() {
     if (best.put.strike !== other.put.strike || best.call.strike !== other.call.strike || best.iso !== other.iso) txt += ' ' + tr('strikes_differ');
     ev.className = 'callout' + (pct < 2 ? ' plain' : ''); ev.textContent = txt;
   } else { ev.className = 'callout plain'; ev.textContent = ok.length === 1 ? tr('one_ex', { ex: exName(ok[0].exch) }) : tr('loading'); }
-
-  // волатильность за год: шкала мин–средняя–макс и линия
   if (st) {
     const pos = v => ((v - st.min) / (st.max - st.min || 1) * 100).toFixed(1) + '%';
     $('dvol-gauge').innerHTML = '<div class="bar"></div><div class="mean" style="left:' + pos(st.mean) + '"></div><div class="now" style="left:' + pos(st.cur) + '"></div>';
     $('dvol-gauge-l').innerHTML = '<span>' + tr('g_min', { v: st.min.toFixed(0) }) + '</span><span>' + tr('g_mean', { v: st.mean.toFixed(0) }) + '</span><span>' + tr('g_max', { v: st.max.toFixed(0) }) + '</span>';
     setText('dvol-mean', st.mean.toFixed(1));
     setText('dvol-rank', fmtPct(st.rank, 0) + ' / ' + fmtPct(st.pct, 0));
-    const s = S.dvol[a];
-    drawLine($('dvol-chart'), s.map(x => ({ x: x.ts, y: x.close })), { hline: st.mean, color: st.cheap ? cssVar('--gain') : cssVar('--ember'), labels: [fmtDate(s[0].ts), fmtDate(s[s.length - 1].ts)] });
+    drawLine($('dvol-chart'), ds.map(x => ({ x: x.ts, y: x.close })), { hline: st.mean, color: st.cheap ? cssVar('--gain') : cssVar('--ember'), labels: [fmtDate(ds[0].ts), fmtDate(ds[ds.length - 1].ts)] });
   }
+}
+
+// Изменение цены за 24 часа и почасовой мини-график (Bybit spot, публичный)
+async function fetch24h(asset) {
+  try {
+    const t = await getJson('https://api.bybit.com/v5/market/tickers?category=spot&symbol=' + asset + 'USDT');
+    const it = (t.result && t.result.list || [])[0];
+    const k = await getJson('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + asset + 'USDT&interval=60&limit=48');
+    const spark = ((k.result && k.result.list) || []).map(x => +x[4]).filter(v => v > 0).reverse();
+    S.t24[asset] = { chg: it ? parseFloat(it.price24hPcnt) * 100 : null, spark };
+  } catch (e) { console.warn('[24h]', e.message); }
 }
 
 function legTitle(l) { return (l.cp === 'P' ? tr('put') : tr('call')) + ' ' + fmtNum(l.strike); }
@@ -1495,31 +1667,6 @@ function shotsSvg(rows) {
 }
 
 // ── Баннер «что делать сейчас» ──
-function bannerHtml(plan, a) {
-  const by = st => plan.sides.filter(x => x.state === st);
-  const fix = by('fix'), buy = by('buy').concat(by('short')), wait = by('wait'), open = plan.sides.filter(x => x.cycle);
-  const lines = [];
-  for (const x of plan.sides) {
-    const Side = sideName(x.side, true);
-    if (x.state === 'fix') { const l = x.hit.leg; lines.push(tr('ban_fix_line', { leg: legTitle(l).toLowerCase(), q: fmtQty(l.qty), a, bid: fmtUsd(l.q.bid, 2), tp: S.cfg.tp })); }
-    else if (x.state === 'work') lines.push(tr('ban_work_line', { Side, m: fmtMult(x.mult), tp: S.cfg.tp }));
-    else if (x.state === 'settle') lines.push(tr('ban_settle', { Side }));
-    else if (x.state === 'buy') lines.push(tr('ban_buy_line', { Side, q: fmtQty(x.r.qty), a, k: fmtNum(x.r.q.strike), exp: isoToExp(x.rec.iso), ex: exName(x.rec.exch), cost: fmtUsd(x.r.total, 2) }));
-    else if (x.state === 'short') lines.push(tr('ban_short_line', { Side, m: x.r.min, a, b: fmtUsd(budget() / 2, 0) }));
-    else if (x.state === 'noquotes') lines.push(tr('ban_noquotes', { Side }));
-  }
-  if (wait.length) lines.push(tr('ban_wait_line'));
-  let tone, title;
-  const names = arr => arr.map(x => sideName(x.side)).join(tr('and'));
-  if (fix.length) { tone = 'fix'; title = tr('ban_fix_title', { side: names(fix) }); }
-  else if (buy.length) { tone = 'buy'; title = open.length ? tr('ban_buy_title', { side: names(buy) }) : tr('ban_entry_title'); }
-  else if (wait.length && !open.length) { tone = 'wait'; title = tr('ban_wait_title'); }
-  else if (open.length) { tone = 'work'; title = tr('ban_work_title'); }
-  else { tone = 'work'; title = tr('loading'); }
-  return '<div class="banner ' + tone + '" role="status"><b class="t">' + esc(title) + '</b>' + lines.map(l => '<p>' + l + '</p>').join('') + '</div>';
-}
-function fmtQty(q) { return String(+(+q).toFixed(4)); }
-
 function legCard(x, f, a) {
   const l = f.leg, c = x.cycle, tp = S.cfg.tp;
   const lp = m => Math.max(0, Math.min(100, Math.log(Math.max(m, 0.01) / 0.1) / Math.log(tp / 0.1) * 100));
@@ -1889,7 +2036,7 @@ async function refreshAll(manual) {
       fetchDvol(a).then(d => { if (!d) S.dvol[a] = null; }),
       fetchDelivery(a),
       fetchChain('bybit', a), fetchChain('deribit', a),
-      fetchLots('bybit', a), fetchLots('deribit', a), fetchKlines(a), fetchBalances(false),
+      fetchLots('bybit', a), fetchLots('deribit', a), fetchKlines(a), fetchBalances(false), fetch24h(a),
     ]);
   } finally {
     refreshing = false; btn.classList.remove('spin');
