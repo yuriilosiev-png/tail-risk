@@ -1,0 +1,19 @@
+// Корневой build.gradle: версия Android Gradle Plugin и репозитории.
+// Настройки самого приложения — в app/build.gradle.
+// AGP 8.9.1 — минимум для compileSdk 36. Нужны Gradle 8.11.1+ и JDK 17 (ставятся в workflow).
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.9.1'
+        classpath 'com.google.gms:google-services:4.4.2'
+    }
+}
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}

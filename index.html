@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0E1A1D" id="theme-color-meta">
+<title>Tail Risk</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20432%20432%22%3E%20%3Crect%20width%3D%22432%22%20height%3D%22432%22%20rx%3D%2296%22%20fill%3D%22%230E1A1D%22/%3E%3Cdefs%3E%3CclipPath%20id%3D%22t%22%3E%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%22163%22%20height%3D%22432%22/%3E%3Crect%20x%3D%22269%22%20y%3D%220%22%20width%3D%22163%22%20height%3D%22432%22/%3E%3C/clipPath%3E%3C/defs%3E%20%3Cpath%20d%3D%22M116%20282C166%20282%20178%20122%20216%20122S266%20282%20316%20282Z%22%20fill%3D%22%23F2A65A%22%20opacity%3D%22.55%22%20clip-path%3D%22url%28%23t%29%22/%3E%20%3Cpath%20d%3D%22M116%20282C166%20282%20178%20122%20216%20122S266%20282%20316%20282%22%20fill%3D%22none%22%20stroke%3D%22%23E9EEE6%22%20stroke-width%3D%2224%22%20stroke-linecap%3D%22round%22/%3E%20%3Cpath%20d%3D%22M116%20282C166%20282%20178%20122%20216%20122S266%20282%20316%20282%22%20fill%3D%22none%22%20stroke%3D%22%23F2A65A%22%20stroke-width%3D%2224%22%20stroke-linecap%3D%22round%22%20clip-path%3D%22url%28%23t%29%22/%3E%20%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400..800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Geologica — с кириллицей, у Bricolage её нет. Палитра «шторм»: ночной петроль, кость, янтарь хвостов */
+:root {
+  --bg: #0E1A1D; --s1: #142427; --s2: #1B2F33; --line: #2A4045;
+  --text: #E9EEE6; --muted: #93A8A1; --faint: #5E7570;
+  --ember: #F2A65A; --ember-soft: rgba(242,166,90,.14); --ember-ink: #1A1206;
+  --gain: #7FD8A6; --loss: #EF7B6C;
+  --display: 'Geologica', 'Segoe UI', system-ui, sans-serif;
+  --body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+}
+body.light {
+  --bg: #EDF1EC; --s1: #F8FAF6; --s2: #E2E9E1; --line: #CBD6CD;
+  --text: #10201F; --muted: #4F6560; --faint: #8A9C96;
+  --ember: #B8661A; --ember-soft: rgba(184,102,26,.12); --ember-ink: #FFF8EE;
+  --gain: #1E8A5A; --loss: #C2412F;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: var(--body); font-size: 15px; line-height: 1.45; overflow: hidden; font-variant-numeric: tabular-nums; }
+#app { display: flex; flex-direction: column; height: 100%; max-width: 560px; margin: 0 auto; }
+button { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+
+/* ── шапка ── */
+#topbar { display: flex; align-items: center; gap: 10px; padding: 12px 18px; padding-top: max(12px, env(safe-area-inset-top)); }
+.brand { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.brand svg { flex: none; }
+.brand b { font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.switch { display: flex; background: var(--s1); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.switch button { background: none; border: none; color: var(--muted); padding: 5px 12px; border-radius: 999px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.switch button.active { background: var(--text); color: var(--bg); }
+.round { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--s1); color: var(--text); cursor: pointer; display: grid; place-items: center; }
+.round svg { width: 18px; height: 18px; }
+.spin svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── контент ── */
+#content { flex: 1; overflow-y: auto; padding: 4px 18px 28px; -webkit-overflow-scrolling: touch; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* герой экрана — без рамки, на фоне */
+.hero { padding: 6px 0 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip { font-size: 12.5px; color: var(--muted); background: var(--s1); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+.chip b { color: var(--text); font-weight: 600; }
+h1 { font-family: var(--display); font-weight: 750; font-size: 38px; line-height: 1.02; letter-spacing: -1px; }
+h1.cheap { color: var(--gain); }
+h1.dear { color: var(--ember); }
+.lead { color: var(--muted); font-size: 15px; margin-top: 8px; max-width: 34em; }
+.lead b { color: var(--text); font-weight: 600; }
+
+/* колокол распределения */
+#curve { margin-top: 14px; }
+#curve svg { width: 100%; height: auto; display: block; overflow: visible; }
+.tails { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.tail { font-size: 13px; color: var(--muted); }
+.tail:last-child { text-align: right; }
+.tail b { display: block; font-family: var(--display); font-size: 20px; color: var(--ember); font-weight: 700; }
+
+/* секции */
+section.block { padding: 18px 0; border-top: 1px solid var(--line); }
+h2 { font-family: var(--display); font-weight: 650; font-size: 19px; letter-spacing: -.2px; margin-bottom: 10px; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+h2 small { font-family: var(--body); font-size: 13px; font-weight: 500; color: var(--muted); }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 5px 0; }
+.row .k { color: var(--muted); font-size: 14px; }
+.row .v { font-weight: 500; text-align: right; }
+.gain { color: var(--gain); } .loss { color: var(--loss); } .ember { color: var(--ember); }
+.note { font-size: 12.5px; color: var(--faint); line-height: 1.5; margin-top: 10px; }
+canvas { width: 100%; display: block; }
+
+/* шкала DVOL: мин — средняя — макс */
+.gauge { position: relative; height: 34px; margin: 6px 0 2px; }
+.gauge .bar { position: absolute; left: 0; right: 0; top: 14px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--gain), var(--s2) 50%, var(--ember)); opacity: .55; }
+.gauge .mean { position: absolute; top: 8px; width: 2px; height: 18px; background: var(--muted); }
+.gauge .now { position: absolute; top: 9px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--text); border: 3px solid var(--bg); }
+.gauge-l { display: flex; justify-content: space-between; font-size: 12px; color: var(--faint); }
+
+/* билеты: биржи и ноги */
+.tickets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ticket { background: var(--s1); border: 1px solid var(--line); border-radius: 16px; padding: 12px; min-width: 0; position: relative; }
+.ticket.best { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember) inset; }
+.ticket .tname { font-family: var(--display); font-weight: 700; font-size: 17px; display: flex; justify-content: space-between; align-items: center; }
+.ticket .tsub { font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+.ticket .line { display: flex; justify-content: space-between; gap: 6px; font-size: 13.5px; padding: 2px 0; }
+.ticket .line span:first-child { color: var(--muted); }
+.ticket .sum { border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 6px; }
+.ticket .sum span:last-child { font-family: var(--display); font-weight: 700; font-size: 17px; }
+.flag { font-size: 11.5px; font-weight: 600; color: var(--ember-ink); background: var(--ember); border-radius: 999px; padding: 2px 8px; }
+.callout { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--ember-soft); color: var(--text); font-size: 14px; }
+.callout.plain { background: var(--s1); color: var(--muted); }
+
+/* позиция: путь к цели */
+.track { position: relative; height: 10px; border-radius: 5px; background: var(--s2); margin: 18px 0 6px; }
+.track .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--ember); max-width: 100%; }
+.track .tick { position: absolute; top: -4px; width: 1px; height: 18px; background: var(--faint); }
+.track-l { position: relative; height: 16px; font-size: 12px; color: var(--faint); }
+.track-l span { position: absolute; transform: translateX(-50%); }
+.track-l span:first-child { transform: none; }
+.track-l span:last-child { transform: translateX(-100%); }
+.leg { background: var(--s1); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 10px; }
+.leg .lt { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.leg .lt b { font-family: var(--display); font-size: 20px; font-weight: 700; }
+.leg .lt span { font-size: 13px; color: var(--muted); }
+.sell { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--ember-soft); border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+.sell .sk { font-size: 13px; color: var(--muted); }
+.sell .sv { font-family: var(--display); font-size: 22px; font-weight: 750; color: var(--ember); text-align: right; line-height: 1.1; }
+.sell .sv small { display: block; font-family: var(--body); font-size: 12.5px; font-weight: 500; color: var(--muted); }
+
+/* сводка: три числа */
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.trio > div { min-width: 0; }
+.trio .l { font-size: 12.5px; color: var(--muted); }
+.trio .n { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: -.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* списки */
+.item { padding: 11px 0; border-bottom: 1px solid var(--line); }
+.item:last-child { border-bottom: none; }
+.it { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.it .name { font-weight: 600; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.is { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--muted); margin-top: 3px; }
+.tag { font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 1px 8px; background: var(--s2); color: var(--muted); white-space: nowrap; }
+.tag.cheap { background: rgba(127,216,166,.15); color: var(--gain); }
+.tag.dear { background: var(--ember-soft); color: var(--ember); }
+.empty { color: var(--muted); padding: 14px 0; line-height: 1.5; }
+.chk { width: 20px; height: 20px; accent-color: var(--ember); flex: none; }
+.x { color: var(--loss); text-decoration: none; margin-left: 6px; }
+
+/* кнопки и поля */
+.btn { background: var(--ember); color: var(--ember-ink); border: none; border-radius: 12px; padding: 12px 16px; font-weight: 600; font-size: 15px; cursor: pointer; width: 100%; }
+.btn.ghost { background: var(--s1); color: var(--text); border: 1px solid var(--line); }
+.btn.small { width: auto; padding: 6px 12px; font-size: 13px; border-radius: 999px; }
+.btn:disabled { opacity: .5; }
+.btns { display: flex; gap: 8px; margin-top: 12px; }
+label.f { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 5px; }
+input, select { width: 100%; background: var(--s1); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 15px; font-family: var(--body); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.status { margin-top: 10px; font-size: 13.5px; line-height: 1.45; }
+.muted { color: var(--muted); }
+.disclaimer { font-size: 12px; color: var(--faint); margin-top: 18px; line-height: 1.5; }
+
+/* нижняя навигация */
+#tabbar { display: flex; background: var(--bg); border-top: 1px solid var(--line); padding: 6px 6px max(8px, env(safe-area-inset-bottom)); }
+#tabbar button { flex: 1; background: none; border: none; color: var(--faint); padding: 6px 2px; font-size: 11.5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; border-radius: 12px; }
+#tabbar button svg { width: 22px; height: 22px; }
+#tabbar button.active { color: var(--text); }
+
+
+/* модалки */
+.modal { display: none; position: fixed; inset: 0; background: rgba(5,12,14,.6); z-index: 50; align-items: flex-end; justify-content: center; }
+.modal.open { display: flex; }
+.sheet { background: var(--bg); border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; width: 100%; max-width: 560px; max-height: 92%; overflow-y: auto; padding: 18px 18px max(20px, env(safe-area-inset-bottom)); }
+.sheet h2 { margin-bottom: 4px; align-items: center; }
+#toast { position: fixed; left: 50%; bottom: 86px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 999px; font-size: 14px; z-index: 60; display: none; max-width: 90%; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .spin svg { animation: none; } }
+/* полоса диапазона цены за цикл: страйки, вход, пройденный путь */
+.strip { position: relative; height: 26px; margin: 10px 0 2px; }
+.strip .base { position: absolute; left: 0; right: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--s2); }
+.strip .rng { position: absolute; top: 9px; height: 8px; border-radius: 4px; background: var(--muted); opacity: .5; }
+.strip .over { position: absolute; top: 9px; height: 8px; border-radius: 4px; background: var(--ember); }
+.strip .kk { position: absolute; top: 3px; width: 2px; height: 20px; margin-left: -1px; background: var(--ember); }
+.strip .e { position: absolute; top: 6px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--text); border: 3px solid var(--bg); }
+.strip-l { position: relative; height: 16px; font-size: 12px; color: var(--faint); }
+.strip-l span { position: absolute; white-space: nowrap; }
+.strip-l .kl { color: var(--ember); font-weight: 600; }
+#shots-chart svg { width: 100%; height: auto; display: block; }
+/* иконки вкладок: контур + смысловая деталь, загорается на активной */
+#tabbar svg .a { fill: currentColor; opacity: .35; }
+#tabbar svg .as { opacity: .45; }
+#tabbar button.active svg { color: var(--text); }
+#tabbar button.active svg .a { fill: var(--ember); opacity: 1; }
+#tabbar button.active svg .as { stroke: var(--ember); opacity: 1; }
+.brand .mark { border-radius: 8px; }
+/* баннер действий */
+.banner { border-radius: 18px; padding: 14px 16px; margin: 2px 0 14px; }
+.banner b.t { display: block; font-family: var(--display); font-size: 21px; font-weight: 750; letter-spacing: -.3px; margin-bottom: 2px; }
+.banner p { font-size: 14.5px; line-height: 1.45; margin-top: 5px; }
+.banner.fix { background: var(--ember); color: var(--ember-ink); }
+.banner.buy { background: rgba(127,216,166,.12); border: 1px solid var(--gain); }
+.banner.buy b.t { color: var(--gain); }
+.banner.wait { background: rgba(239,123,108,.10); border: 1px solid var(--loss); }
+.banner.wait b.t { color: var(--loss); }
+.banner.work { background: var(--s1); border: 1px solid var(--line); }
+.sell.hit { background: var(--ember); }
+.sell.hit .sk, .sell.hit .sv, .sell.hit .sv small { color: var(--ember-ink); }
+.leg .mult { font-family: var(--display); font-weight: 700; font-size: 17px; color: var(--muted); }
+.leg .mult.gain { color: var(--gain); }
+.leg.slot { background: transparent; border-style: dashed; }
+.leg .track { margin-top: 14px; }
+.ticket .buyq span:last-child { font-weight: 600; color: var(--text); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="brand">
+      <svg class="mark" width="30" height="30" viewBox="0 0 432 432" aria-hidden="true">
+        <rect width="432" height="432" rx="96" fill="var(--s2)"/>
+        <clipPath id="tl"><rect x="0" y="0" width="163" height="432"/><rect x="269" y="0" width="163" height="432"/></clipPath>
+        <path d="M116 282C166 282 178 122 216 122S266 282 316 282Z" fill="var(--ember)" opacity=".55" clip-path="url(#tl)"/>
+        <path d="M116 282C166 282 178 122 216 122S266 282 316 282" fill="none" stroke="var(--text)" stroke-width="28" stroke-linecap="round"/>
+        <path d="M116 282C166 282 178 122 216 122S266 282 316 282" fill="none" stroke="var(--ember)" stroke-width="28" stroke-linecap="round" clip-path="url(#tl)"/>
+      </svg>
+      <b data-i18n="app_name">Хвостовой риск</b>
+    </div>
+    <div class="switch" id="asset-seg">
+      <button data-asset="ETH" onclick="setAsset('ETH')">ETH</button>
+      <button data-asset="BTC" onclick="setAsset('BTC')">BTC</button>
+    </div>
+    <button class="round" onclick="refreshAll(true)" id="refresh-btn" aria-label="Обновить">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>
+    </button>
+  </div>
+
+  <div id="content">
+    <!-- ══ СИГНАЛ ══ -->
+    <div class="screen" id="scr-signal">
+      <div id="sig-banner"></div>
+      <div class="hero">
+        <div class="chips"><span class="chip" id="spot-badge">—</span><span class="chip" id="dvol-chip">DVOL —</span><span class="chip" id="rec-params">—</span></div>
+        <h1 id="hero-title" data-i18n="loading">Загрузка…</h1>
+        <p class="lead" id="hero-sub"></p>
+        <div id="curve"></div>
+        <div class="tails" id="curve-tails"></div>
+      </div>
+
+      <section class="block">
+        <h2><span data-i18n="where_buy">Где купить дешевле</span><small id="rec-budget"></small></h2>
+        <div class="tickets" id="rec-exch"></div>
+        <div class="callout plain" id="exch-verdict">—</div>
+        <p class="note" data-i18n="rec_note">Цена покупки — по аску, с комиссией биржи. Ордера ставишь на бирже сам.</p>
+      </section>
+
+      <section class="block">
+        <h2 data-i18n="vol_year">Волатильность за год</h2>
+        <div class="gauge" id="dvol-gauge"><div class="bar"></div></div>
+        <div class="gauge-l" id="dvol-gauge-l"></div>
+        <canvas id="dvol-chart" height="96" style="margin-top:14px"></canvas>
+        <div class="row"><span class="k" data-i18n="vol_mean">Средняя за 365 дней</span><span class="v" id="dvol-mean">—</span></div>
+        <div class="row"><span class="k" data-i18n="vol_rank">IV rank и перцентиль</span><span class="v" id="dvol-rank">—</span></div>
+      </section>
+      <p class="disclaimer" data-i18n="disclaimer">Расчёты по данным бирж. Не является инвестиционной рекомендацией.</p>
+    </div>
+
+    <!-- ══ ПОЗИЦИЯ ══ -->
+    <div class="screen" id="scr-position">
+      <div id="pos-banner"></div>
+      <div class="hero" id="pos-hero">
+        <div class="chips" id="pos-chips"></div>
+        <h1 id="pos-mult">—</h1>
+        <p class="lead" id="pos-lead" data-i18n="pos_empty">Открытой позиции нет.</p>
+        <div id="pos-track"></div>
+      </div>
+      <div id="pos-body"></div>
+      <section class="block">
+        <h2 id="pos-entry-title" data-i18n="entry_title">Вход в цикл</h2>
+        <div id="pos-entry"></div>
+      </section>
+      <section class="block">
+        <h2 data-i18n="push_title">Уведомления о фиксации</h2>
+        <div class="status muted" id="push-status" data-i18n="push_off">Выключены</div>
+        <button class="btn ghost" style="margin-top:10px" id="push-btn" onclick="enablePush()" data-i18n="push_enable">Включить уведомления</button>
+      </section>
+    </div>
+
+    <!-- ══ ДЕНЬГИ ══ -->
+    <div class="screen" id="scr-money">
+      <div class="hero">
+        <h1 id="flow-net">—</h1>
+        <p class="lead" data-i18n="flow_lead">Чистый результат стратегии: всё полученное минус всё потраченное, с комиссиями.</p>
+      </div>
+      <div class="trio">
+        <div><div class="l" data-i18n="flow_out">Потрачено</div><div class="n loss" id="flow-out">—</div></div>
+        <div><div class="l" data-i18n="flow_in">Получено</div><div class="n gain" id="flow-in">—</div></div>
+        <div><div class="l" data-i18n="flow_open">В позиции</div><div class="n" id="flow-openval">—</div></div>
+      </div>
+      <div class="row" style="margin-top:6px"><span class="k" data-i18n="flow_fees">Комиссии за всё время</span><span class="v" id="flow-fees">—</span></div>
+      <button class="btn" style="margin-top:12px" id="sync-btn" onclick="syncExchanges()" data-i18n="sync">Загрузить сделки с бирж</button>
+      <div class="status muted" id="sync-status"></div>
+
+      <section class="block" style="margin-top:16px">
+        <h2><span data-i18n="ledger_title">Сделки</span><button class="btn small ghost" onclick="openManual()" data-i18n="add_manual">Добавить вручную</button></h2>
+        <p class="note" style="margin-top:0" data-i18n="ledger_hint">Отмеченные сделки входят в стратегию.</p>
+        <div id="ledger-list"></div>
+      </section>
+    </div>
+
+    <!-- ══ СТАТИСТИКА ══ -->
+    <div class="screen" id="scr-stats">
+      <div class="hero">
+        <h1 id="st-net">—</h1>
+        <p class="lead" id="st-lead"></p>
+      </div>
+      <canvas id="eq-chart" height="150"></canvas>
+      <div class="trio" style="margin-top:14px">
+        <div><div class="l" data-i18n="st_win">Винрейт</div><div class="n" id="st-win">—</div></div>
+        <div><div class="l" data-i18n="st_best">Лучший</div><div class="n gain" id="st-best">—</div></div>
+        <div><div class="l" data-i18n="st_dd">Просадка</div><div class="n" id="st-dd">—</div></div>
+      </div>
+      <section class="block" style="margin-top:16px">
+        <div class="row"><span class="k" data-i18n="st_cycles">Закрытых циклов</span><span class="v" id="st-cycles">—</span></div>
+        <div class="row"><span class="k" data-i18n="st_roi">Доходность на вложенное</span><span class="v" id="st-roi">—</span></div>
+        <div class="row"><span class="k" data-i18n="st_avgcost">Средняя стоимость входа</span><span class="v" id="st-avgcost">—</span></div>
+        <div class="row"><span class="k" data-i18n="st_avgdays">Средняя длительность цикла</span><span class="v" id="st-avgdays">—</span></div>
+      </section>
+      <section class="block">
+        <h2 data-i18n="shots_title">Где были прострелы</h2>
+        <p class="lead" id="shots-lead" style="margin:0 0 10px"></p>
+        <div id="shots-chart"></div>
+        <p class="note" id="shots-note"></p>
+      </section>
+      <section class="block">
+        <h2 data-i18n="st_vol_split">Низкая вола против высокой</h2>
+        <div id="st-split"></div>
+        <p class="note" data-i18n="st_vol_note"></p>
+      </section>
+      <section class="block">
+        <h2 data-i18n="journal_title">Журнал циклов</h2>
+        <div id="journal"></div>
+      </section>
+    </div>
+
+    <!-- ══ НАСТРОЙКИ ══ -->
+    <div class="screen" id="scr-settings">
+      <section class="block" style="border-top:none">
+        <h2 data-i18n="set_strategy">Правила стратегии</h2>
+        <p class="lead" id="depo-info" style="margin:0 0 4px;font-size:14px"></p>
+        <div class="grid2">
+          <div><label class="f" data-i18n="set_deposit">Депозит, $</label><input type="number" id="cfg-deposit" inputmode="decimal"></div>
+          <div><label class="f" data-i18n="set_budget">Бюджет входа, % депо</label><input type="number" id="cfg-budgetPct" inputmode="decimal"></div>
+          <div><label class="f" data-i18n="set_otm">Страйки от цены, ±%</label><input type="number" id="cfg-otm" inputmode="decimal"></div>
+          <div><label class="f" data-i18n="set_dte">Экспирация, дней</label><input type="number" id="cfg-dte" inputmode="numeric"></div>
+          <div><label class="f" data-i18n="set_tp">Фиксация, × от вложенного</label><input type="number" id="cfg-tp" inputmode="decimal"></div>
+          <div><label class="f" data-i18n="set_minotm">Автоотбор дальше, %</label><input type="number" id="cfg-minOtm" inputmode="decimal"></div>
+        </div>
+        <label class="f" data-i18n="set_split">Распределение бюджета</label>
+        <select id="cfg-split"><option value="usd" data-i18n="split_usd">Поровну в $</option><option value="qty" data-i18n="split_qty">Одинаковое количество</option></select>
+        <label class="f" data-i18n="set_start">Начало стратегии</label>
+        <input type="date" id="cfg-start">
+        <button class="btn" style="margin-top:14px" onclick="saveSettings()" data-i18n="save">Сохранить</button>
+      </section>
+      <section class="block">
+        <h2 data-i18n="set_api">Ключи бирж</h2>
+        <div id="api-status-list"></div>
+        <div class="btns">
+          <button class="btn ghost" onclick="openConnect('bybit')">Bybit</button>
+          <button class="btn ghost" onclick="openConnect('deribit')">Deribit</button>
+        </div>
+        <p class="note" data-i18n="api_note"></p>
+      </section>
+      <section class="block">
+        <h2 data-i18n="set_fees">Комиссии бирж</h2>
+        <div class="grid2">
+          <div><label class="f">Bybit, <span data-i18n="of_index">% от индекса</span></label><input type="number" id="cfg-feeBybit" step="0.001"></div>
+          <div><label class="f">Bybit, <span data-i18n="cap_premium">потолок, % премии</span></label><input type="number" id="cfg-capBybit" step="0.1"></div>
+          <div><label class="f">Deribit, <span data-i18n="of_index">% от индекса</span></label><input type="number" id="cfg-feeDeribit" step="0.001"></div>
+          <div><label class="f">Deribit, <span data-i18n="cap_premium">потолок, % премии</span></label><input type="number" id="cfg-capDeribit" step="0.1"></div>
+        </div>
+        <p class="note" data-i18n="fees_note"></p>
+      </section>
+      <section class="block">
+        <h2 data-i18n="set_app">Приложение</h2>
+        <div class="btns">
+          <button class="btn ghost" onclick="toggleLang()" id="lang-btn">English</button>
+          <button class="btn ghost" onclick="toggleTheme()" data-i18n="theme">Сменить тему</button>
+        </div>
+        <div class="btns">
+          <button class="btn ghost" onclick="exportData()" data-i18n="export">Экспорт данных</button>
+          <button class="btn ghost" onclick="document.getElementById('import-file').click()" data-i18n="import">Импорт</button>
+        </div>
+        <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importData(event)">
+        <button class="btn ghost" style="margin-top:8px;color:var(--loss)" onclick="clearData()" data-i18n="clear">Удалить все сделки</button>
+        <p class="note" style="margin-top:14px"><a href="privacy-policy.html" style="color:var(--muted)" data-i18n="privacy">Политика конфиденциальности</a> · <a href="terms-of-service.html" style="color:var(--muted)" data-i18n="terms">Условия использования</a> · <a href="data-deletion.html" style="color:var(--muted)" data-i18n="deletion">Удаление данных</a></p>
+      </section>
+    </div>
+  </div>
+
+  <nav id="tabbar">
+    <button data-tab="signal" onclick="goTab('signal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path class="a" d="M2.5 19.5C4.7 19.5 5.7 17.7 6.5 14.6V19.5Z" stroke="none"/><path class="a" d="M21.5 19.5C19.3 19.5 18.3 17.7 17.5 14.6V19.5Z" stroke="none"/><path d="M2.5 19.5C7 19.5 8.2 4.5 12 4.5S17 19.5 21.5 19.5"/></svg><span data-i18n="tab_signal">Сигнал</span></button>
+    <button data-tab="position" onclick="goTab('position')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/><circle class="a" cx="12" cy="12" r="3" stroke="none"/></svg><span data-i18n="tab_position">Позиция</span></button>
+    <button data-tab="money" onclick="goTab('money')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path class="as" d="M8 20V4.5M4 8.5l4-4 4 4"/><path d="M16 4v15.5M12 15.5l4 4 4-4"/></svg><span data-i18n="tab_money">Деньги</span></button>
+    <button data-tab="stats" onclick="goTab('stats')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20.5h18"/><rect x="5" y="13.5" width="3.2" height="7" rx="1"/><rect x="10.4" y="10" width="3.2" height="10.5" rx="1"/><rect class="a" x="15.8" y="3" width="3.2" height="17.5" rx="1" stroke="none"/></svg><span data-i18n="tab_stats">Итоги</span></button>
+    <button data-tab="settings" onclick="goTab('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M3 7h9M18 7h3M3 17h3M12 17h9"/><circle class="a" cx="15" cy="7" r="2.8" stroke="none"/><circle class="a" cx="9" cy="17" r="2.8" stroke="none"/></svg><span data-i18n="tab_settings">Настройки</span></button>
+  </nav>
+</div>
+
+<!-- подключение ключей -->
+<div class="modal" id="connect-modal" onclick="if(event.target===this)closeModal('connect-modal')">
+  <div class="sheet">
+    <h2><span id="connect-title">API</span><button class="round" onclick="closeModal('connect-modal')" aria-label="✕">✕</button></h2>
+    <p class="note" style="margin-top:0" data-i18n="connect_hint"></p>
+    <label class="f">API Key / Client ID</label><input type="text" id="api-key-input" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label class="f">API Secret / Client Secret</label><input type="password" id="api-secret-input" autocomplete="off">
+    <div class="btns">
+      <button class="btn" onclick="connectExchange()" data-i18n="connect">Подключить</button>
+      <button class="btn ghost" onclick="disconnectExchange()" data-i18n="disconnect">Отключить</button>
+    </div>
+    <div class="status" id="connect-status"></div>
+  </div>
+</div>
+
+<!-- ручная запись -->
+<div class="modal" id="manual-modal" onclick="if(event.target===this)closeModal('manual-modal')">
+  <div class="sheet">
+    <h2><span data-i18n="manual_title">Записать сделку</span><button class="round" onclick="closeModal('manual-modal')" aria-label="✕">✕</button></h2>
+    <div class="grid2">
+      <div><label class="f" data-i18n="m_exch">Биржа</label><select id="m-exch"><option value="bybit">Bybit</option><option value="deribit">Deribit</option></select></div>
+      <div><label class="f" data-i18n="m_side">Действие</label><select id="m-side" onchange="onManualSide()"><option value="buy" data-i18n="side_buy">Покупка</option><option value="sell" data-i18n="side_sell">Продажа</option><option value="expiry" data-i18n="side_expiry">Экспирация</option></select></div>
+      <div><label class="f" data-i18n="m_type">Тип</label><select id="m-cp"><option value="P">Put</option><option value="C">Call</option></select></div>
+      <div><label class="f" data-i18n="m_strike">Страйк</label><input type="number" id="m-strike" inputmode="decimal"></div>
+      <div><label class="f" data-i18n="m_exp">Экспирация</label><input type="date" id="m-exp"></div>
+      <div><label class="f" data-i18n="m_qty">Количество</label><input type="number" id="m-qty" inputmode="decimal" step="0.01"></div>
+      <div><label class="f" id="m-px-label" data-i18n="m_px">Цена опциона, $</label><input type="number" id="m-px" inputmode="decimal"></div>
+      <div><label class="f" data-i18n="m_fee">Комиссия, $</label><input type="number" id="m-fee" inputmode="decimal" value="0"></div>
+      <div><label class="f" data-i18n="m_spot">Цена актива, $</label><input type="number" id="m-spot" inputmode="decimal"></div>
+      <div><label class="f" data-i18n="m_date">Дата</label><input type="datetime-local" id="m-date"></div>
+    </div>
+    <button class="btn" style="margin-top:14px" onclick="saveManual()" data-i18n="save">Сохранить</button>
+    <div class="status loss" id="manual-status"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════
+// TAIL RISK v1 — трекер стратегии хвостов:
+// покупка дальних OTM-стрэнглов при низкой воле, фиксация на ×N.
+// Основа (ключи, подписи, BS, DVOL) взята из Crypto Options (P2).
+// ═══════════════════════════════════════════════════
+const APP_VER = '1.0';
+const WORKER_URL = 'https://options-alerts.yuriilosiev.workers.dev';
+const LS = 'tr-';                       // префикс всех ключей localStorage
+const ASSETS = ['ETH', 'BTC'];
+const DAY = 86400000;
+
+// ── I18N ──
+const I18N = {
+  ru: {
+    app_name: 'Хвостовой риск', loading: 'Загрузка…',
+    hero_cheap: 'Хвосты дешёвые', hero_dear: 'Хвосты дорогие', hero_wait: 'Считаю хвосты…',
+    hero_sub_cheap: 'DVOL <b>{cur}</b> — на {d} ниже средней за год ({mean}). Условие входа выполнено.',
+    hero_sub_dear: 'DVOL <b>{cur}</b> — на {d} выше средней за год ({mean}). Вероятность положительного исхода на дистанции низкая.',
+    vol_err: 'Не удалось загрузить DVOL с Deribit. Проверь интернет и обнови.',
+    tail_left: 'шанс, что {a} будет ниже {k} к {date}', tail_right: 'шанс, что {a} будет выше {k} к {date}',
+    curve_note: 'Распределение цены на дату экспирации по текущему DVOL. Янтарным — хвосты за страйками стрэнгла.',
+    where_buy: 'Где купить дешевле', budget_of: '{b} из {d}',
+    vol_year: 'Волатильность за год', vol_mean: 'Средняя за 365 дней', vol_rank: 'IV rank и перцентиль',
+    g_min: 'мин {v}', g_mean: 'средняя {v}', g_max: 'макс {v}',
+    rec_note: 'Цена покупки — по аску, с комиссией биржи. Ордера ставишь на бирже сам.',
+    days: 'дн.', put: 'Пут', call: 'Колл', fee: 'Комиссия', unit: 'За 1 стрэнгл', qty: 'Количество', total: 'Итого',
+    no_quotes: 'Нет котировок', min_lot: 'Мин. лот {m}: бюджета не хватает', exp_in: '{d}, через {n} дн.',
+    best_ex: '{ex} дешевле на {d} за стрэнгл ({p}).', same_ex: 'Цена на биржах почти одинаковая — бери, где удобнее.',
+    strikes_differ: 'Страйки или даты на биржах отличаются, учти это.', one_ex: 'Котировки есть только на {ex}.',
+    cheaper_flag: 'дешевле',
+    disclaimer: 'Расчёты по данным бирж. Не является инвестиционной рекомендацией.',
+    anchor_open: 'Последнее открытие', anchor_close: 'Последнее закрытие',
+    no_open: 'Открытий пока нет.', no_close: 'Закрытий пока нет. Первый закрытый цикл появится здесь.',
+    pos_none_title: 'Позиции нет', pos_empty: 'Когда купишь стрэнгл, он появится здесь после загрузки сделок или ручной записи.',
+    pos_lead: 'Стоит <b>{val}</b> при вложенных {cost}. Цель — ×{tp}, это {target}.',
+    opened_on: 'открыта {d}', cost: 'Вложено', returned: 'Получено', result: 'Результат', value_mark: 'По mark', pnl: 'P&L',
+    sell_at: 'Продать по', sell_when: '{a} сегодня {s} {p}', fix_unreach: 'недостижимо до экспирации',
+    leg_meta: '{q} {a} на {ex}', bid_mark: 'бид {b}, mark {m}', iv_left: 'IV {iv}, до экспирации {n} дн.',
+    fix_note: 'Уровень цены актива сдвигается со временем: по мере распада опциона для той же цены нужно движение сильнее. Пересчитывается при каждом открытии.',
+    expired_wait: 'Истёк, ждёт расчёта',
+    dvol_at: 'DVOL при входе', spot_at: 'Цена {a} при входе', opened: 'Открыто', closed: 'Закрыто',
+    push_title: 'Уведомления о фиксации', push_off: 'Выключены.', push_enable: 'Включить уведомления',
+    push_on: 'Включены. Слежу за уровнями: {n}.', push_web: 'Уведомления работают в Android-приложении. В браузере уровни видны только на экране.',
+    push_err: 'Не удалось включить уведомления: {e}', push_wait: 'Включаю…',
+    alert_put: 'Фикс пута {k}: {a} ≤ {p}', alert_call: 'Фикс колла {k}: {a} ≥ {p}',
+    flow_lead: 'Чистый результат стратегии: всё полученное минус всё потраченное, с комиссиями.',
+    flow_out: 'Потрачено', flow_in: 'Получено', flow_open: 'В позиции', flow_fees: 'Комиссии за всё время',
+    sync: 'Загрузить сделки с бирж', sync_run: 'Загружаю сделки…', sync_done: 'Готово, новых сделок: {n}.',
+    sync_nokeys: 'Подключи ключ биржи в настройках или добавляй сделки вручную.', sync_err: '{ex}: {e}',
+    cycles_title: 'Циклы', cycles_empty: 'Циклов пока нет. Цикл начинается с покупки стрэнгла и заканчивается, когда обе ноги закрыты.',
+    cycle_open: 'идёт',
+    ledger_title: 'Сделки', add_manual: 'Добавить вручную', ledger_empty: 'Сделок пока нет.',
+    ledger_hint: 'Отмеченные сделки входят в стратегию. Покупки дальних опционов отмечаются автоматически.',
+    side_buy: 'Покупка', side_sell: 'Продажа', side_expiry: 'Экспирация', manual_mark: 'вручную',
+    st_lead: 'Закрытых циклов: {n}. Вложено всего {cost}.', st_lead_empty: 'Итоги появятся после первого закрытого цикла.',
+    st_cycles: 'Закрытых циклов', st_win: 'Винрейт', st_best: 'Лучший', st_roi: 'Доходность на вложенное', st_dd: 'Просадка',
+    st_avgcost: 'Средняя стоимость входа', st_avgdays: 'Средняя длительность цикла',
+    st_vol_split: 'Низкая вола против высокой', st_low: 'Вход при DVOL ниже средней', st_high: 'Вход при DVOL выше средней', st_unknown: 'DVOL неизвестен',
+    privacy: 'Политика конфиденциальности', terms: 'Условия использования', deletion: 'Удаление данных',
+    puts: 'путы', calls: 'колы', and: ' и ', buy_qty: 'Купить', total: 'Итого',
+    ban_fix_title: 'Закрыть {side}', ban_fix_line: 'Продай {q} {a} ({leg}) по бид {bid} — цель ×{tp} достигнута.',
+    ban_work_title: 'Позиции работают', ban_work_line: '{Side}: {m} от вложенного, цель ×{tp}.',
+    ban_entry_title: 'Время входа', ban_buy_title: 'Докупить {side}',
+    ban_buy_line: '{Side}: купить {q} {a}, страйк {k}, {exp}, на {ex} — около {cost}.',
+    ban_short_line: '{Side}: на половину бюджета ({b}) не хватает минимального лота {m} {a}.',
+    ban_wait_title: 'Вола выше средней за год', ban_wait_line: 'Вероятность положительного исхода на дистанции низкая. Жди снижения волы или рассмотри другую стратегию.',
+    ban_settle: '{Side}: опцион истёк, жду расчёта биржи.', ban_noquotes: '{Side}: нет котировок для подбора.',
+    slot_title: '{Side} не открыты', slot_buy: 'Купить {q} {a}: страйк {k}, {exp}, {ex}, аск {ask} — итого около {cost}.',
+    slot_wait: 'Не докупаю: вола выше средней за год.',
+    fix_now: 'Цель достигнута — продай по бид', fix_now_sub: '{q} {a}, лимитом по биду',
+    pos_lead2: 'Открытые позиции стоят <b>{val}</b> при вложенных {cost}. Каждая сторона фиксируется по своей цели.',
+    leg_cost: 'вложено {cost}, сейчас {val}',
+    depo_ex: 'Депозит с бирж: <b>{d}</b> ({parts}). Бюджет входа {b}.',
+    depo_manual: 'Ключи не подключены — депозит из поля ниже: <b>{d}</b>, бюджет входа {b}.', depo_err: 'Баланс не загрузился: {e}',
+    set_split: 'Распределение бюджета', split_usd: 'Поровну в $ на путы и колы', split_qty: 'Одинаковое количество путов и колов',
+    entry_title: 'Открытые циклы', last_cycle: 'Прошлый цикл',
+    iv_at: 'IV опционов при входе', rank_at: 'IV rank при входе', move_since: 'Ход цены с входа',
+    move_fmt: '{up} вверх, {down} вниз', shot_put: 'прострел вниз', shot_call: 'прострел вверх', shot_both: 'прострел в обе стороны', no_shot: 'без прострела',
+    shots_title: 'Где были прострелы', shots_lead: 'Цена дошла до страйка в {h} из {n} циклов. Средний ход: {up} вверх, {down} вниз.',
+    shots_note: 'Каждая линия — цикл: от минимума до максимума цены после входа. По горизонтали — DVOL при входе. Пунктир — страйки ±{otm}%, янтарным — ход за страйк.',
+    shots_empty: 'График появится после первого цикла.', axis_dvol: 'DVOL при входе',
+    journal_title: 'Журнал циклов', journal_meta: 'Вход {spot}, DVOL {dvol}, IV rank {rank}, IV {iv}',
+    st_split_row: '{n} цикл., прострелов {h}, итог {net}, винрейт {w}',
+    st_vol_note: 'Главная проверка стратегии: входы при низкой воле должны давать результат лучше. Бэктест 2021–2026 показал, что без этого фильтра стратегия в среднем около нуля.',
+    set_strategy: 'Правила стратегии', set_deposit: 'Депозит без ключей, $', set_budget: 'Бюджет входа, % депо',
+    set_otm: 'Страйки от цены, ±%', set_dte: 'Экспирация, дней', set_tp: 'Фиксация, × от вложенного в ногу',
+    set_minotm: 'Автоотбор дальше, %', set_start: 'Начало стратегии — более ранние сделки не учитываются',
+    save: 'Сохранить', saved: 'Сохранено',
+    set_api: 'Ключи бирж', api_on: 'подключён', api_off: 'не подключён',
+    api_note: 'Ключ хранится только на этом устройстве, секрет зашифрован. Нужны права только на чтение. В браузере Bybit может не отвечать из-за ограничений CORS — в Android-приложении работает.',
+    set_fees: 'Комиссии бирж', of_index: '% от индекса', cap_premium: 'потолок, % премии',
+    fees_note: 'По умолчанию — базовый уровень тейкера. Сверь с разделом комиссий своей биржи.',
+    set_app: 'Приложение', lang_other: 'English', theme: 'Сменить тему', export: 'Экспорт данных', import: 'Импорт', clear: 'Удалить все сделки',
+    clear_confirm: 'Удалить все сделки и циклы? Ключи и настройки останутся.',
+    imported: 'Данные импортированы', import_err: 'Это не файл экспорта «Хвостового риска»',
+    connect_hint: 'Создай на бирже ключ только для чтения: без торговли, вывода и переводов.',
+    connect: 'Подключить', disconnect: 'Отключить', conn_wait: 'Проверяю ключ…',
+    conn_enter: 'Введи ключ и секрет', conn_ok: 'Подключено. Права только на чтение.',
+    conn_warn: 'Подключено, но ключ может торговать. Безопаснее пересоздать его только для чтения.',
+    conn_danger: 'У ключа есть права на вывод или переводы. Удали его на бирже и создай ключ только для чтения.',
+    conn_unknown: 'Ключ сохранён, но права проверить не удалось: {e}', disconnected: 'Отключено',
+    manual_title: 'Записать сделку', m_exch: 'Биржа', m_side: 'Действие', m_type: 'Тип', m_strike: 'Страйк',
+    m_exp: 'Экспирация', m_qty: 'Количество', m_px: 'Цена опциона, $', m_px_exp: 'Цена поставки актива, $',
+    m_fee: 'Комиссия, $', m_spot: 'Цена актива, $', m_date: 'Дата', m_err: 'Заполни страйк, экспирацию, количество и цену',
+    del_confirm: 'Удалить запись?',
+    tab_signal: 'Сигнал', tab_position: 'Позиция', tab_money: 'Деньги', tab_stats: 'Итоги', tab_settings: 'Настройки',
+    cheap: 'дёшево', dear: 'дорого', na: 'нет данных', refresh: 'Обновлено {t}',
+  },
+  en: {
+    app_name: 'Tail Risk', loading: 'Loading…',
+    hero_cheap: 'Tails are cheap', hero_dear: 'Tails are pricey', hero_wait: 'Pricing the tails…',
+    hero_sub_cheap: 'DVOL <b>{cur}</b> is {d} below its 1-year average ({mean}). Entry condition met.',
+    hero_sub_dear: 'DVOL <b>{cur}</b> is {d} above its 1-year average ({mean}). The odds of a positive result over time are low.',
+    vol_err: 'Could not load DVOL from Deribit. Check your connection and refresh.',
+    tail_left: 'chance {a} ends below {k} by {date}', tail_right: 'chance {a} ends above {k} by {date}',
+    curve_note: 'Price distribution at expiry from current DVOL. Amber marks the tails beyond the strangle strikes.',
+    where_buy: 'Where it is cheaper', budget_of: '{b} of {d}',
+    vol_year: 'Volatility this year', vol_mean: '365-day average', vol_rank: 'IV rank and percentile',
+    g_min: 'min {v}', g_mean: 'avg {v}', g_max: 'max {v}',
+    rec_note: 'Buy price is the ask plus the exchange fee. You place the orders on the exchange yourself.',
+    days: 'd', put: 'Put', call: 'Call', fee: 'Fee', unit: 'Per strangle', qty: 'Quantity', total: 'Total',
+    no_quotes: 'No quotes', min_lot: 'Min lot {m}: budget too small', exp_in: '{d}, in {n} days',
+    best_ex: '{ex} is {d} cheaper per strangle ({p}).', same_ex: 'Prices are about the same — use whichever you prefer.',
+    strikes_differ: 'Strikes or dates differ between exchanges, keep that in mind.', one_ex: 'Quotes only on {ex}.',
+    cheaper_flag: 'cheaper',
+    disclaimer: 'Calculations use exchange data. Not investment advice.',
+    anchor_open: 'Last open', anchor_close: 'Last close',
+    no_open: 'No opens yet.', no_close: 'No closes yet. Your first closed cycle will show here.',
+    pos_none_title: 'No position', pos_empty: 'Once you buy a strangle, it shows up here after syncing trades or logging it manually.',
+    pos_lead: 'Worth <b>{val}</b> on {cost} invested. Target is ×{tp}, that is {target}.',
+    opened_on: 'opened {d}', cost: 'Invested', returned: 'Received', result: 'Result', value_mark: 'At mark', pnl: 'P&L',
+    sell_at: 'Sell at', sell_when: '{a} today {s} {p}', fix_unreach: 'out of reach before expiry',
+    leg_meta: '{q} {a} on {ex}', bid_mark: 'bid {b}, mark {m}', iv_left: 'IV {iv}, {n} days to expiry',
+    fix_note: 'The underlying level drifts: as the option decays, a bigger move is needed for the same price. Recalculated each time you open the app.',
+    expired_wait: 'Expired, awaiting settlement',
+    dvol_at: 'DVOL at entry', spot_at: '{a} at entry', opened: 'Opened', closed: 'Closed',
+    push_title: 'Take-profit alerts', push_off: 'Off.', push_enable: 'Turn on alerts',
+    push_on: 'On. Watching {n} levels.', push_web: 'Alerts work in the Android app. In a browser, levels show on screen only.',
+    push_err: 'Could not turn on alerts: {e}', push_wait: 'Turning on…',
+    alert_put: 'Put {k} take-profit: {a} ≤ {p}', alert_call: 'Call {k} take-profit: {a} ≥ {p}',
+    flow_lead: 'Strategy net result: everything received minus everything spent, fees included.',
+    flow_out: 'Spent', flow_in: 'Received', flow_open: 'In position', flow_fees: 'Fees, all time',
+    sync: 'Load trades from exchanges', sync_run: 'Loading trades…', sync_done: 'Done, new trades: {n}.',
+    sync_nokeys: 'Connect an exchange key in Settings or add trades manually.', sync_err: '{ex}: {e}',
+    cycles_title: 'Cycles', cycles_empty: 'No cycles yet. A cycle starts with a strangle buy and ends when both legs are closed.',
+    cycle_open: 'running',
+    ledger_title: 'Trades', add_manual: 'Add manually', ledger_empty: 'No trades yet.',
+    ledger_hint: 'Checked trades belong to the strategy. Far OTM option buys are checked automatically.',
+    side_buy: 'Buy', side_sell: 'Sell', side_expiry: 'Expiry', manual_mark: 'manual',
+    st_lead: '{n} closed cycles, {cost} invested in total.', st_lead_empty: 'Results appear after your first closed cycle.',
+    st_cycles: 'Closed cycles', st_win: 'Win rate', st_best: 'Best', st_roi: 'Return on cost', st_dd: 'Drawdown',
+    st_avgcost: 'Average entry cost', st_avgdays: 'Average cycle length',
+    st_vol_split: 'Low vol vs high vol', st_low: 'Entered with DVOL below average', st_high: 'Entered with DVOL above average', st_unknown: 'DVOL unknown',
+    privacy: 'Privacy policy', terms: 'Terms of service', deletion: 'Data deletion',
+    puts: 'puts', calls: 'calls', and: ' and ', buy_qty: 'Buy', total: 'Total',
+    ban_fix_title: 'Close the {side}', ban_fix_line: 'Sell {q} {a} ({leg}) at bid {bid} — the ×{tp} target is reached.',
+    ban_work_title: 'Positions are working', ban_work_line: '{Side}: {m} of cost, target ×{tp}.',
+    ban_entry_title: 'Time to enter', ban_buy_title: 'Rebuy the {side}',
+    ban_buy_line: '{Side}: buy {q} {a}, strike {k}, {exp}, on {ex} — about {cost}.',
+    ban_short_line: '{Side}: half the budget ({b}) is below the minimum lot of {m} {a}.',
+    ban_wait_title: 'Vol is above its 1-year average', ban_wait_line: 'The odds of a positive result over time are low. Wait for vol to drop or consider another strategy.',
+    ban_settle: '{Side}: option expired, waiting for settlement.', ban_noquotes: '{Side}: no quotes to pick from.',
+    slot_title: '{Side} not open', slot_buy: 'Buy {q} {a}: strike {k}, {exp}, {ex}, ask {ask} — about {cost} in total.',
+    slot_wait: 'Not rebuying: vol is above its 1-year average.',
+    fix_now: 'Target reached — sell at bid', fix_now_sub: '{q} {a}, limit at the bid',
+    pos_lead2: 'Open positions are worth <b>{val}</b> on {cost} invested. Each side exits at its own target.',
+    leg_cost: 'cost {cost}, now {val}',
+    depo_ex: 'Deposit from exchanges: <b>{d}</b> ({parts}). Entry budget {b}.',
+    depo_manual: 'No keys connected — deposit from the field below: <b>{d}</b>, entry budget {b}.', depo_err: 'Balance failed to load: {e}',
+    set_split: 'Budget split', split_usd: 'Equal $ to puts and calls', split_qty: 'Equal quantity of puts and calls',
+    entry_title: 'Open cycles', last_cycle: 'Previous cycle',
+    iv_at: 'Option IV at entry', rank_at: 'IV rank at entry', move_since: 'Price move since entry',
+    move_fmt: '{up} up, {down} down', shot_put: 'downside hit', shot_call: 'upside hit', shot_both: 'hit both ways', no_shot: 'no hit',
+    shots_title: 'Where the tails hit', shots_lead: 'Price reached a strike in {h} of {n} cycles. Average move: {up} up, {down} down.',
+    shots_note: 'Each line is a cycle: from the lowest to the highest price after entry. Horizontal axis — DVOL at entry. Dashes — strikes at ±{otm}%, amber — move beyond a strike.',
+    shots_empty: 'The chart appears after your first cycle.', axis_dvol: 'DVOL at entry',
+    journal_title: 'Cycle journal', journal_meta: 'Entry {spot}, DVOL {dvol}, IV rank {rank}, IV {iv}',
+    st_split_row: '{n} cycles, {h} hits, net {net}, win rate {w}',
+    st_vol_note: 'The key test: entries at low vol should do better. The 2021–2026 backtest showed the strategy is about breakeven without this filter.',
+    set_strategy: 'Strategy rules', set_deposit: 'Deposit without keys, $', set_budget: 'Entry budget, % of deposit',
+    set_otm: 'Strikes from price, ±%', set_dte: 'Expiry, days', set_tp: 'Take-profit, × of leg cost',
+    set_minotm: 'Auto-select beyond, %', set_start: 'Strategy start — earlier trades are ignored',
+    save: 'Save', saved: 'Saved',
+    set_api: 'Exchange keys', api_on: 'connected', api_off: 'not connected',
+    api_note: 'The key stays on this device, the secret is encrypted. Read-only permissions only. In a browser Bybit may fail due to CORS — the Android app works.',
+    set_fees: 'Exchange fees', of_index: '% of index', cap_premium: 'cap, % of premium',
+    fees_note: 'Defaults are the base taker tier. Check your exchange fee page.',
+    set_app: 'App', lang_other: 'Русский', theme: 'Switch theme', export: 'Export data', import: 'Import', clear: 'Delete all trades',
+    clear_confirm: 'Delete all trades and cycles? Keys and settings stay.',
+    imported: 'Data imported', import_err: 'This is not a Tail Risk export file',
+    connect_hint: 'Create a read-only key on the exchange: no trading, withdrawals or transfers.',
+    connect: 'Connect', disconnect: 'Disconnect', conn_wait: 'Checking key…',
+    conn_enter: 'Enter key and secret', conn_ok: 'Connected. Read-only permissions.',
+    conn_warn: 'Connected, but the key can trade. Safer to recreate it as read-only.',
+    conn_danger: 'The key can withdraw or transfer funds. Delete it on the exchange and create a read-only key.',
+    conn_unknown: 'Key saved, but permissions could not be checked: {e}', disconnected: 'Disconnected',
+    manual_title: 'Log a trade', m_exch: 'Exchange', m_side: 'Action', m_type: 'Type', m_strike: 'Strike',
+    m_exp: 'Expiry', m_qty: 'Quantity', m_px: 'Option price, $', m_px_exp: 'Settlement price, $',
+    m_fee: 'Fee, $', m_spot: 'Underlying price, $', m_date: 'Date', m_err: 'Fill in strike, expiry, quantity and price',
+    del_confirm: 'Delete this record?',
+    tab_signal: 'Signal', tab_position: 'Position', tab_money: 'Money', tab_stats: 'Results', tab_settings: 'Settings',
+    cheap: 'cheap', dear: 'pricey', na: 'no data', refresh: 'Updated {t}',
+  },
+};
+
+// ── СОСТОЯНИЕ ──
+const DEFAULT_CFG = {
+  v: 2, deposit: 1000, budgetPct: 5, otm: 25, dte: 30, tp: 20, minOtm: 12, split: 'usd',
+  start: null,                       // ms; null → 30 дней назад при первом запуске
+  feeBybit: 0.03, capBybit: 7, feeDeribit: 0.03, capDeribit: 12.5,
+};
+const S = {
+  lang: 'ru', theme: 'dark', asset: 'ETH', tab: 'signal',
+  cfg: Object.assign({}, DEFAULT_CFG),
+  keys: { bybit: null, deribit: null },   // { key, secret } в памяти; секрет на диске зашифрован
+  spot: {},                               // asset → USD
+  dvol: {},                               // asset → [{ts, close}]
+  kl: {},                                 // asset → дневные свечи [{ts, h, l}]
+  chain: { bybit: {}, deribit: {} },      // exch → asset → { ts, quotes:[...] }
+  lots: { bybit: {}, deribit: {} },       // exch → asset → { sym: {min, step} }
+  ledger: [],                             // записи сделок
+  incl: {},                               // id → true/false (ручная отметка)
+  snaps: {},                              // id → { dvol, mean } на момент входа
+  delivery: {},                           // asset → { 'YYYY-MM-DD': price }
+  lastSync: { bybit: 0, deribit: 0 },
+  push: { fcmId: null, sent: '' },
+  bal: {}, balErr: {},                    // exch → { usd, ts } — депозит с бирж
+};
+
+function lsGet(k, def) { try { const v = localStorage.getItem(LS + k); return v === null ? def : JSON.parse(v); } catch (e) { return def; } }
+function lsSet(k, v) { try { localStorage.setItem(LS + k, JSON.stringify(v)); } catch (e) { console.warn('[LS]', k, e.message); } }
+
+function loadState() {
+  S.lang = lsGet('lang', (navigator.language || 'ru').toLowerCase().startsWith('ru') ? 'ru' : 'en');
+  S.theme = lsGet('theme', 'dark');
+  S.asset = lsGet('asset', 'ETH');
+  S.cfg = Object.assign({}, DEFAULT_CFG, lsGet('cfg', {}));
+  if (!S.cfg.start) { S.cfg.start = Date.now() - 30 * DAY; lsSet('cfg', S.cfg); }
+  // v2: цель фиксации считается на ногу; ×20 на ногу ≈ ×10 на стрэнгл из бэктеста
+  if (!(S.cfg.v >= 2)) { S.cfg.tp = 20; S.cfg.split = 'usd'; S.cfg.v = 2; lsSet('cfg', S.cfg); }
+  S.bal = lsGet('bal', {});
+  S.ledger = lsGet('ledger', []);
+  S.incl = lsGet('incl', {});
+  S.snaps = lsGet('snaps', {});
+  S.delivery = lsGet('delivery', {});
+  S.lastSync = Object.assign({ bybit: 0, deribit: 0 }, lsGet('lastSync', {}));
+  S.push = Object.assign({ fcmId: null, sent: '' }, lsGet('push', {}));
+}
+function saveLedger() { lsSet('ledger', S.ledger); lsSet('incl', S.incl); lsSet('snaps', S.snaps); }
+
+// ── ФОРМАТЫ ──
+function tr(key, vars) {
+  let s = (I18N[S.lang] && I18N[S.lang][key]) || I18N.ru[key] || key;
+  if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
+  return s;
+}
+function fmtUsd(v, dec) {
+  if (v === null || v === undefined || !isFinite(v)) return '—';
+  const d = dec !== undefined ? dec : (Math.abs(v) >= 100 ? 0 : 2);
+  const s = Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  return (v < 0 ? '−$' : '$') + s;
+}
+function fmtSigned(v, dec) { if (!isFinite(v)) return '—'; return (v > 0 ? '+' : '') + fmtUsd(v, dec); }
+function fmtNum(v, dec) { if (!isFinite(v)) return '—'; return v.toLocaleString('en-US', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }); }
+function fmtPct(v, dec) { if (!isFinite(v)) return '—'; return v.toFixed(dec === undefined ? 1 : dec) + '%'; }
+function fmtMult(v) { if (!isFinite(v)) return '—'; return '×' + (v >= 10 ? v.toFixed(1) : v.toFixed(2)); }
+function fmtDate(ms) { if (!ms) return '—'; const d = new Date(ms); return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getFullYear()).slice(2); }
+function fmtDateTime(ms) { if (!ms) return '—'; const d = new Date(ms); return d.toLocaleString(S.lang === 'ru' ? 'ru-RU' : 'en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+function cls(v) { return v > 0 ? 'gain' : (v < 0 ? 'loss' : ''); }
+function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function $(id) { return document.getElementById(id); }
+function setText(id, txt, klass) { const el = $(id); if (!el) return; el.textContent = txt; if (klass !== undefined) el.className = el.className.replace(/\b(gain|loss|cheap|dear)\b/g, '').trim() + (klass ? ' ' + klass : ''); }
+function showToast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(showToast._t); showToast._t = setTimeout(() => t.style.display = 'none', 2600); }
+
+// ── ДАТЫ ЭКСПИРАЦИИ (08:00 UTC, как в P2) ──
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+function expToISO(expPart) {
+  const m = String(expPart || '').toUpperCase().match(/^(\d{1,2})([A-Z]{3})(\d{2,4})$/);
+  if (!m) return null;
+  const mon = MONTHS.indexOf(m[2]) + 1;
+  if (!mon) return null;
+  const y = parseInt(m[3], 10); const year = y < 100 ? 2000 + y : y;
+  return year + '-' + String(mon).padStart(2, '0') + '-' + String(parseInt(m[1], 10)).padStart(2, '0');
+}
+function isoToExp(iso) { const d = new Date(iso + 'T00:00:00Z'); return d.getUTCDate() + MONTHS[d.getUTCMonth()] + String(d.getUTCFullYear()).slice(2); }
+function expMs(iso) { const b = new Date(iso + 'T00:00:00Z').getTime(); return isFinite(b) ? b + 8 * 3600000 : NaN; }
+// «ETH-6NOV26-2700-C» и «ETH-6NOV26-2700-C-USDT»
+function parseSym(sym) {
+  const p = String(sym || '').split('-');
+  if (p.length < 4) return null;
+  const cp = p.slice(3).find(x => x === 'C' || x === 'P');
+  const strike = parseFloat(p[2]);
+  const iso = expToISO(p[1]);
+  if (!cp || !isFinite(strike) || !iso) return null;
+  return { asset: p[0], iso: iso, strike: strike, cp: cp };
+}
+function legKey(e) { return e.asset + '-' + isoToExp(e.exp) + '-' + e.strike + '-' + e.cp + '@' + e.exch; }
+
+// ── BLACK–SCHOLES (из P2) ──
+function normCDF(x) {
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+  const sign = x < 0 ? -1 : 1; x = Math.abs(x) / Math.SQRT2;
+  const t = 1 / (1 + p * x);
+  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return 0.5 * (1 + sign * y);
+}
+function bsPrice(S0, K, T, sigma, cp) {
+  if (T <= 0 || sigma <= 0) return cp === 'C' ? Math.max(0, S0 - K) : Math.max(0, K - S0);
+  const sd = sigma * Math.sqrt(T);
+  const d1 = (Math.log(S0 / K) + 0.5 * sigma * sigma * T) / sd, d2 = d1 - sd;
+  return cp === 'C' ? S0 * normCDF(d1) - K * normCDF(d2) : K * normCDF(-d2) - S0 * normCDF(-d1);
+}
+// Обратная задача (как optMarkToSpot в P2): при какой цене актива опцион стоит target.
+function spotForPrice(K, cp, T, sigma, target) {
+  if (!(target > 0) || !(K > 0)) return null;
+  if (cp === 'P' && target >= K) return null;                     // пут не может стоить больше страйка
+  let lo = K * 0.001, hi = K * 20;
+  const f = s => bsPrice(s, K, Math.max(T, 1e-6), sigma, cp);
+  const fl = f(lo), fh = f(hi);
+  if (target < Math.min(fl, fh) || target > Math.max(fl, fh)) return null;
+  for (let i = 0; i < 90; i++) {
+    const mid = (lo + hi) / 2, pm = f(mid);
+    if (cp === 'C' ? pm < target : pm > target) lo = mid; else hi = mid;
+  }
+  const r = (lo + hi) / 2;
+  return isFinite(r) && r > 0 ? r : null;
+}
+
+// ── AES-GCM ДЛЯ СЕКРЕТОВ (из P2, свой ключ устройства) ──
+async function getCryptoKey() {
+  const b64 = localStorage.getItem(LS + 'aeskey');
+  if (b64) {
+    try { return await crypto.subtle.importKey('raw', Uint8Array.from(atob(b64), c => c.charCodeAt(0)), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']); }
+    catch (e) { console.warn('[AES] повреждён ключ, генерирую новый'); }
+  }
+  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+  const raw = new Uint8Array(await crypto.subtle.exportKey('raw', key));
+  localStorage.setItem(LS + 'aeskey', btoa(String.fromCharCode(...raw)));
+  return key;
+}
+async function aesEncrypt(str) {
+  const key = await getCryptoKey(), iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(str)));
+  const all = new Uint8Array(12 + ct.length); all.set(iv, 0); all.set(ct, 12);
+  return 'aes:' + btoa(String.fromCharCode(...all));
+}
+async function aesDecrypt(stored) {
+  if (!stored || !stored.startsWith('aes:')) return '';
+  try {
+    const all = Uint8Array.from(atob(stored.slice(4)), c => c.charCodeAt(0));
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: all.slice(0, 12) }, await getCryptoKey(), all.slice(12));
+    return new TextDecoder().decode(pt);
+  } catch (e) { return ''; }
+}
+async function loadKeys() {
+  for (const ex of ['bybit', 'deribit']) {
+    const k = lsGet('key-' + ex, null), s = lsGet('sec-' + ex, null);
+    if (k && s) { const sec = await aesDecrypt(s); S.keys[ex] = sec ? { key: k, secret: sec } : null; }
+  }
+}
+
+// ── HTTP ──
+async function getJson(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+// Bybit v5: подпись = timestamp + apiKey + recvWindow + queryString (как в P2)
+async function bybitPrivate(path, params) {
+  const k = S.keys.bybit; if (!k) throw new Error('no key');
+  const ts = Date.now().toString(), rw = '5000';
+  const qs = Object.keys(params).sort().map(x => x + '=' + params[x]).join('&');
+  const enc = new TextEncoder();
+  const hk = await crypto.subtle.importKey('raw', enc.encode(k.secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', hk, enc.encode(ts + k.key + rw + qs));
+  const sign = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const j = await getJson('https://api.bybit.com' + path + (qs ? '?' + qs : ''), {
+    headers: { 'X-BAPI-API-KEY': k.key, 'X-BAPI-TIMESTAMP': ts, 'X-BAPI-RECV-WINDOW': rw, 'X-BAPI-SIGN': sign },
+  });
+  if (j.retCode !== 0) throw new Error('retCode ' + j.retCode + ' ' + (j.retMsg || ''));
+  return j.result;
+}
+async function deribitAuth() {
+  const k = S.keys.deribit; if (!k) throw new Error('no key');
+  const j = await getJson('https://www.deribit.com/api/v2/public/auth?client_id=' + encodeURIComponent(k.key) +
+    '&client_secret=' + encodeURIComponent(k.secret) + '&grant_type=client_credentials');
+  if (!j.result || !j.result.access_token) throw new Error((j.error && j.error.message) || 'auth');
+  return j.result;
+}
+async function deribitPrivate(token, path) {
+  const j = await getJson('https://www.deribit.com/api/v2/' + path, { headers: { Authorization: 'Bearer ' + token } });
+  if (j.error) throw new Error(j.error.message || 'error');
+  return j.result;
+}
+
+// ── ПУБЛИЧНЫЕ ДАННЫЕ ──
+async function fetchSpot(asset) {
+  const j = await getJson('https://www.deribit.com/api/v2/public/get_index_price?index_name=' + asset.toLowerCase() + '_usd');
+  const p = j && j.result && j.result.index_price;
+  if (p > 0) { S.spot[asset] = p; lsSet('spot-' + asset, p); }
+  return p;
+}
+
+// DVOL за последние 365 дней (не календарный год), дневные свечи
+async function fetchDvol(asset) {
+  const cache = lsGet('dvol-' + asset, null);
+  if (cache && Date.now() - cache.ts < 30 * 60000 && cache.data.length > 30) { S.dvol[asset] = cache.data; return cache.data; }
+  const end = Date.now(), start = end - 365 * DAY;
+  const base = 'https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=' + asset +
+    '&start_timestamp=' + start + '&end_timestamp=' + end + '&resolution=';
+  for (const res of ['1D', '43200', '3600']) {
+    try {
+      const j = await getJson(base + res);
+      const rows = j && j.result && j.result.data;
+      if (!Array.isArray(rows) || rows.length < 30) continue;
+      // по одной точке на день: последняя свеча дня
+      const byDay = {};
+      for (const x of rows) { const c = parseFloat(x[4]); if (c > 0) byDay[new Date(+x[0]).toISOString().slice(0, 10)] = { ts: +x[0], close: c }; }
+      let out = Object.values(byDay).sort((a, b) => a.ts - b.ts);
+      if (out.length && Math.max(...out.map(o => o.close)) < 5) out = out.map(o => ({ ts: o.ts, close: o.close * 100 }));
+      if (out.length < 30) continue;
+      S.dvol[asset] = out; lsSet('dvol-' + asset, { ts: Date.now(), data: out });
+      return out;
+    } catch (e) { /* следующий resolution */ }
+  }
+  if (cache) { S.dvol[asset] = cache.data; return cache.data; }
+  return null;
+}
+function dvolStats(series) {
+  if (!series || series.length < 30) return null;
+  const v = series.map(x => x.close), cur = v[v.length - 1];
+  const mean = v.reduce((a, b) => a + b, 0) / v.length;
+  const mn = Math.min(...v), mx = Math.max(...v);
+  return { cur, mean, min: mn, max: mx, rank: mx > mn ? (cur - mn) / (mx - mn) * 100 : 50, pct: v.filter(x => x <= cur).length / v.length * 100, cheap: cur < mean };
+}
+// DVOL и средняя на момент ts (средняя — по точкам ряда до ts, минимум 60)
+function dvolAt(asset, ts) {
+  const s = S.dvol[asset]; if (!s || !s.length) return null;
+  if (ts < s[0].ts - DAY) return null;
+  let i = s.length - 1; while (i > 0 && s[i].ts > ts) i--;
+  const prior = s.slice(Math.max(0, i - 364), i + 1).map(x => x.close);
+  if (prior.length < 60) return { dvol: s[i].close, mean: null, rank: null };
+  const mn = Math.min(...prior), mx = Math.max(...prior);
+  return { dvol: s[i].close, mean: prior.reduce((a, b) => a + b, 0) / prior.length, rank: mx > mn ? (s[i].close - mn) / (mx - mn) * 100 : null };
+}
+
+// Цепочка опционов → единый формат котировки (цены в USD)
+async function fetchChain(exch, asset) {
+  const quotes = [];
+  if (exch === 'bybit') {
+    const j = await getJson('https://api.bybit.com/v5/market/tickers?category=option&baseCoin=' + asset);
+    for (const t of (j.result && j.result.list) || []) {
+      const p = parseSym(t.symbol); if (!p) continue;
+      const und = parseFloat(t.underlyingPrice || t.indexPrice) || S.spot[asset];
+      quotes.push({ exch, asset, sym: t.symbol, iso: p.iso, strike: p.strike, cp: p.cp,
+        bid: parseFloat(t.bid1Price) || 0, ask: parseFloat(t.ask1Price) || 0, mark: parseFloat(t.markPrice) || 0,
+        iv: (parseFloat(t.markIv) || 0) * 100, und: und, idx: parseFloat(t.indexPrice) || und });
+    }
+  } else {
+    const j = await getJson('https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=' + asset + '&kind=option');
+    for (const t of j.result || []) {
+      const p = parseSym(t.instrument_name); if (!p) continue;
+      const und = parseFloat(t.underlying_price) || S.spot[asset];
+      // Deribit: цены в монете → USD по цене базового актива (как в P2)
+      quotes.push({ exch, asset, sym: t.instrument_name, iso: p.iso, strike: p.strike, cp: p.cp,
+        bid: (parseFloat(t.bid_price) || 0) * und, ask: (parseFloat(t.ask_price) || 0) * und, mark: (parseFloat(t.mark_price) || 0) * und,
+        iv: parseFloat(t.mark_iv) || 0, und: und, idx: S.spot[asset] || und, coin: true });
+    }
+  }
+  S.chain[exch][asset] = { ts: Date.now(), quotes };
+  return quotes;
+}
+
+// Минимальный лот и шаг количества
+async function fetchLots(exch, asset) {
+  const cache = lsGet('lots-' + exch + '-' + asset, null);
+  if (cache && Date.now() - cache.ts < 12 * 3600000) { S.lots[exch][asset] = cache.data; return; }
+  const out = {};
+  if (exch === 'bybit') {
+    let cursor = '', guard = 0;
+    do {
+      const j = await getJson('https://api.bybit.com/v5/market/instruments-info?category=option&baseCoin=' + asset + '&limit=1000' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''));
+      for (const i of (j.result && j.result.list) || []) {
+        const f = i.lotSizeFilter || {};
+        out[i.symbol] = { min: parseFloat(f.minOrderQty) || 0.01, step: parseFloat(f.qtyStep) || 0.01 };
+      }
+      cursor = (j.result && j.result.nextPageCursor) || '';
+    } while (cursor && ++guard < 5);
+  } else {
+    const j = await getJson('https://www.deribit.com/api/v2/public/get_instruments?currency=' + asset + '&kind=option&expired=false');
+    for (const i of j.result || []) out[i.instrument_name] = { min: parseFloat(i.min_trade_amount) || 0.1, step: parseFloat(i.min_trade_amount) || 0.1 };
+  }
+  S.lots[exch][asset] = out;
+  lsSet('lots-' + exch + '-' + asset, { ts: Date.now(), data: out });
+}
+
+// Цены поставки Deribit — для опционов, истёкших без записи о расчёте
+async function fetchDelivery(asset) {
+  try {
+    const j = await getJson('https://www.deribit.com/api/v2/public/get_delivery_prices?index_name=' + asset.toLowerCase() + '_usd&offset=0&count=120');
+    const m = S.delivery[asset] || {};
+    for (const d of (j.result && j.result.data) || []) if (d.date && d.delivery_price > 0) m[d.date] = d.delivery_price;
+    S.delivery[asset] = m; lsSet('delivery', S.delivery);
+  } catch (e) { console.warn('[delivery]', e.message); }
+}
+
+// Комиссия покупки одного контракта, USD
+function optFee(exch, idx, premium) {
+  const rate = exch === 'bybit' ? S.cfg.feeBybit : S.cfg.feeDeribit;
+  const cap = exch === 'bybit' ? S.cfg.capBybit : S.cfg.capDeribit;
+  return Math.min(idx * rate / 100, premium * cap / 100);
+}
+// Дневные свечи цены (Bybit spot, публичный) — диапазон, пройденный ценой за цикл
+async function fetchKlines(asset) {
+  const cache = lsGet('kl-' + asset, null);
+  if (cache && Date.now() - cache.ts < 3 * 3600000 && cache.data.length) { S.kl[asset] = cache.data; return; }
+  const j = await getJson('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + asset + 'USDT&interval=D&limit=1000');
+  const out = ((j.result && j.result.list) || []).map(x => ({ ts: +x[0], h: +x[2], l: +x[3] })).filter(x => x.h > 0 && x.l > 0).sort((a, b) => a.ts - b.ts);
+  if (out.length) { S.kl[asset] = out; lsSet('kl-' + asset, { ts: Date.now(), data: out }); }
+}
+// Подразумеваемая волатильность по цене сделки (обратный Блэк–Шоулз), в долях
+function impliedVol(px, S0, K, T, cp) {
+  if (!(px > 0) || !(S0 > 0) || !(T > 0)) return null;
+  if (px <= (cp === 'C' ? Math.max(0, S0 - K) : Math.max(0, K - S0)) + 1e-9) return null;
+  let lo = 0.01, hi = 5;
+  if (bsPrice(S0, K, T, hi, cp) < px) return null;
+  for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (bsPrice(S0, K, T, m, cp) < px) lo = m; else hi = m; }
+  return (lo + hi) / 2;
+}
+</script>
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════
+// ЛОГИКА СТРАТЕГИИ
+// ═══════════════════════════════════════════════════
+
+// ── Депозит: сумма на подключённых биржах; без ключей — из настроек ──
+function deposit() {
+  let usd = 0, any = false;
+  for (const ex of ['bybit', 'deribit']) {
+    const b = S.bal[ex];
+    if (S.keys[ex] && b && b.usd >= 0) { usd += b.usd; any = true; }
+  }
+  return any ? { usd, src: 'exchange' } : { usd: S.cfg.deposit, src: 'manual' };
+}
+function budget() { return deposit().usd * S.cfg.budgetPct / 100; }
+const SIDES = ['P', 'C'];
+function sideName(s, cap) { const t = tr(s === 'P' ? 'puts' : 'calls'); return cap ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
+
+// ── Подбор на одной бирже: экспирация ближе всего к dte, страйки ±otm ──
+function recommend(exch, asset) {
+  const ch = S.chain[exch][asset], S0 = S.spot[asset];
+  if (!ch || !ch.quotes.length || !(S0 > 0)) return null;
+  const now = Date.now();
+  const isos = [...new Set(ch.quotes.map(q => q.iso))].filter(i => (expMs(i) - now) / DAY >= 7);
+  if (!isos.length) return null;
+  const iso = isos.reduce((b, i) => Math.abs((expMs(i) - now) / DAY - S.cfg.dte) < Math.abs((expMs(b) - now) / DAY - S.cfg.dte) ? i : b);
+  const days = (expMs(iso) - now) / DAY;
+  const pick = (cp, target) => {
+    const c = ch.quotes.filter(q => q.iso === iso && q.cp === cp && q.ask > 0);
+    return c.length ? c.reduce((b, q) => Math.abs(q.strike - target) < Math.abs(b.strike - target) ? q : b) : null;
+  };
+  const put = pick('P', S0 * (1 - S.cfg.otm / 100)), call = pick('C', S0 * (1 + S.cfg.otm / 100));
+  if (!put || !call) return { exch, iso, days, empty: true };
+  const B = budget(), lots = S.lots[exch][asset] || {};
+  const leg = (q, qtyFn) => {
+    const fee = optFee(exch, q.idx, q.ask), unit = q.ask + fee;
+    const lot = lots[q.sym] || { min: 0.1, step: 0.1 };
+    const qty = +(Math.floor(qtyFn(unit) / lot.step + 1e-9) * lot.step).toFixed(6);
+    return { q, fee, unit, qty, min: lot.min, short: qty < lot.min, total: qty * unit };
+  };
+  const unitBoth = put.ask + call.ask + optFee(exch, put.idx, put.ask) + optFee(exch, call.idx, call.ask);
+  // «usd»: каждой стороне половина бюджета; «qty»: одинаковое количество путов и колов
+  const qtyFn = S.cfg.split === 'qty' ? () => B / unitBoth : u => B / 2 / u;
+  const P = leg(put, qtyFn), C = leg(call, qtyFn);
+  return { exch, iso, days, put, call, P, C, fee: P.fee + C.fee, unit: unitBoth, total: P.total + C.total };
+}
+function bestRec(asset) {
+  const ok = ['bybit', 'deribit'].map(ex => recommend(ex, asset)).filter(r => r && !r.empty);
+  if (!ok.length) return null;
+  return ok.length === 2 ? (ok[0].unit <= ok[1].unit ? ok[0] : ok[1]) : ok[0];
+}
+
+// ── Отбор сделок в стратегию ──
+// Покупка входит, если страйк дальше от цены, чем minOtm. Продажа и экспирация
+// входят, если раньше в стратегию попала покупка той же ноги. Ручная галочка главнее.
+function includedEntries(asset) {
+  const list = S.ledger.filter(e => e.asset === asset).sort((a, b) => a.ts - b.ts);
+  const keys = new Set(), out = [];
+  for (const e of list) {
+    let inc;
+    if (e.id in S.incl) inc = S.incl[e.id];
+    else if (e.ts < S.cfg.start) inc = false;
+    else if (e.side === 'buy') inc = !(e.spot > 0) || Math.abs(e.strike / e.spot - 1) * 100 >= S.cfg.minOtm;
+    else inc = keys.has(legKey(e));
+    e._inc = inc;
+    if (inc) { out.push(e); if (e.side === 'buy') keys.add(legKey(e)); }
+  }
+  return out;
+}
+function intrinsic(cp, K, P) { return cp === 'C' ? Math.max(0, P - K) : Math.max(0, K - P); }
+
+// Ноги, которые истекли, а записи о расчёте нет (OTM-опционы биржа часто не пишет):
+// создаём виртуальную экспирацию по цене поставки Deribit.
+function withVirtualExpiries(asset, entries) {
+  const pos = {}, proto = {};
+  for (const e of entries) {
+    const k = legKey(e);
+    pos[k] = (pos[k] || 0) + (e.side === 'buy' ? e.qty : -e.qty);
+    proto[k] = e;
+  }
+  const out = entries.slice(), now = Date.now();
+  for (const k in pos) {
+    if (pos[k] <= 1e-9) continue;
+    const e = proto[k], em = expMs(e.exp);
+    if (!(em + 3600000 < now)) continue;
+    const dp = (S.delivery[asset] || {})[e.exp];
+    const price = dp || S.spot[asset];
+    out.push({ id: 'V' + k, virt: true, approx: !dp, exch: e.exch, src: 'auto', ts: em, asset, exp: e.exp, strike: e.strike, cp: e.cp,
+      side: 'expiry', qty: pos[k], px: price ? intrinsic(e.cp, e.strike, price) : 0, fee: 0, spot: price || 0 });
+  }
+  return out.sort((a, b) => a.ts - b.ts);
+}
+
+// ── Циклы по сторонам: путы и колы живут независимо ──
+// Цикл стороны — от первой покупки при нулевой позиции до полного выхода из неё.
+function buildCycles(asset) {
+  const entries = withVirtualExpiries(asset, includedEntries(asset));
+  const cycles = [], cur = { P: null, C: null }, pos = { P: {}, C: {} };
+  for (const e of entries) {
+    const s = e.cp, k = legKey(e);
+    if (e.side === 'buy') {
+      if (!cur[s]) cur[s] = { asset, side: s, start: e.ts, firstId: e.id, cost: 0, ret: 0, fees: 0, entries: [], open: true };
+      cur[s].cost += e.px * e.qty + e.fee;
+      pos[s][k] = (pos[s][k] || 0) + e.qty;
+    } else {
+      if (!cur[s]) continue;                    // выход без входа в окне стратегии
+      cur[s].ret += e.px * e.qty - e.fee;
+      pos[s][k] = (pos[s][k] || 0) - e.qty;
+    }
+    cur[s].fees += e.fee; cur[s].entries.push(e);
+    if (Object.values(pos[s]).every(q => q <= 1e-9)) {
+      const c = cur[s];
+      c.end = e.ts; c.open = false; c.net = c.ret - c.cost; c.mult = c.cost > 0 ? c.ret / c.cost : 0;
+      cycles.push(c); cur[s] = null; pos[s] = {};
+    }
+  }
+  for (const s of SIDES) if (cur[s]) { cur[s].net = cur[s].ret - cur[s].cost; cycles.push(cur[s]); }
+  cycles.sort((a, b) => a.start - b.start);
+  for (const c of cycles) c.vol = cycleVol(c);
+  return { cycles, entries };
+}
+// DVOL на входе: снимок в момент синхронизации, иначе восстановление по ряду
+function cycleVol(c) {
+  const sn = S.snaps[c.firstId];
+  if (sn) return sn;
+  const v = dvolAt(c.asset, c.start);
+  if (Date.now() - c.start < 2 * DAY) {
+    const st = dvolStats(S.dvol[c.asset]);
+    if (st) { S.snaps[c.firstId] = { dvol: st.cur, mean: st.mean, rank: st.rank }; lsSet('snaps', S.snaps); return S.snaps[c.firstId]; }
+  }
+  return v;
+}
+
+// ── Открытые ноги с текущими котировками ──
+function openLegs(asset, built) {
+  const by = {};
+  for (const e of built.entries) {
+    const k = legKey(e);
+    if (!by[k]) by[k] = { exch: e.exch, asset, exp: e.exp, strike: e.strike, cp: e.cp, qty: 0 };
+    by[k].qty += e.side === 'buy' ? e.qty : -e.qty;
+  }
+  const legs = [];
+  for (const k in by) {
+    const l = by[k]; if (l.qty <= 1e-9) continue;
+    const ch = S.chain[l.exch][asset];
+    l.q = ch ? ch.quotes.find(q => q.iso === l.exp && q.strike === l.strike && q.cp === l.cp) : null;
+    l.T = Math.max(0, (expMs(l.exp) - Date.now()) / (365 * DAY));
+    l.expired = l.T <= 0;
+    legs.push(l);
+  }
+  return legs.sort((a, b) => a.cp.localeCompare(b.cp));
+}
+
+// ── Уровни фиксации по стороне ──
+// Цель стороны — tp × вложенное в неё. Остаток цели делится на открытое количество
+// стороны → цена продажи; обратный Блэк–Шоулз даёт цену актива, при которой опцион столько стоит.
+function fixLevels(built, legs) {
+  return legs.map(l => {
+    const c = built.cycles.find(x => x.open && x.side === l.cp);
+    if (!c || l.expired) return { leg: l, cycle: c, unit: null, spot: null };
+    const sideQty = legs.filter(x => x.cp === l.cp && !x.expired).reduce((s, x) => s + x.qty, 0);
+    const need = S.cfg.tp * c.cost - c.ret;
+    if (!(need > 0) || !(sideQty > 0)) return { leg: l, cycle: c, unit: null, spot: null };
+    const unit = need / sideQty;
+    const iv = (l.q && l.q.iv > 0 ? l.q.iv : (dvolStats(S.dvol[l.asset]) || { cur: 60 }).cur) / 100;
+    const spot = spotForPrice(l.strike, l.cp, l.T, iv, unit);
+    return { leg: l, cycle: c, unit, spot, coin: spot ? unit / spot : null, iv, hit: !!(l.q && l.q.bid >= unit) };
+  });
+}
+function cycleValue(c, legs) {
+  let v = 0;
+  for (const l of legs) {
+    if (l.cp !== c.side) continue;
+    if (l.expired) v += intrinsic(l.cp, l.strike, S.spot[l.asset] || 0) * l.qty;
+    else if (l.q) v += l.q.bid * l.qty;
+  }
+  return v;
+}
+
+// ── План: что делать сейчас по каждой стороне ──
+function makePlan(asset) {
+  const built = buildCycles(asset), legs = openLegs(asset, built), fx = fixLevels(built, legs);
+  const st = dvolStats(S.dvol[asset]), rec = bestRec(asset);
+  const sides = SIDES.map(s => {
+    const c = built.cycles.find(x => x.open && x.side === s);
+    if (c) {
+      const f = fx.filter(x => x.leg.cp === s), hit = f.find(x => x.hit);
+      const val = cycleValue(c, legs), mult = c.cost > 0 ? (c.ret + val) / c.cost : 0;
+      const state = hit ? 'fix' : f.every(x => x.leg.expired) ? 'settle' : 'work';
+      return { side: s, state, cycle: c, fx: f, hit, val, mult };
+    }
+    if (st && !st.cheap) return { side: s, state: 'wait' };
+    if (!rec) return { side: s, state: 'noquotes' };
+    const r = s === 'P' ? rec.P : rec.C;
+    return { side: s, state: r.short ? 'short' : 'buy', rec, r };
+  });
+  return { built, legs, fx, sides, st, rec };
+}
+
+// ═══════════════════════════════════════════════════
+// СИНХРОНИЗАЦИЯ СДЕЛОК С БИРЖ
+// ═══════════════════════════════════════════════════
+function addEntries(list) {
+  const have = new Set(S.ledger.map(e => e.id)); let n = 0;
+  for (const e of list) if (e && !have.has(e.id)) { S.ledger.push(e); have.add(e.id); n++; }
+  return n;
+}
+function mapBybitExec(x) {
+  const p = parseSym(x.symbol); if (!p) return null;
+  const type = x.execType;
+  const qty = parseFloat(x.execQty), price = parseFloat(x.execPrice), fee = parseFloat(x.execFee) || 0;
+  const spot = parseFloat(x.indexPrice) || parseFloat(x.underlyingPrice) || 0;
+  const base = { id: 'B' + x.execId, src: 'bybit', exch: 'bybit', ts: parseInt(x.execTime, 10), asset: p.asset, exp: p.iso, strike: p.strike, cp: p.cp, qty, fee, spot };
+  if (type === 'Trade' || type === 'BlockTrade') return Object.assign(base, { side: x.side === 'Buy' ? 'buy' : 'sell', px: price });
+  if (type === 'Delivery') {
+    if (x.side !== 'Sell') return null;          // поставка шорта — не наша стратегия
+    // В записи поставки execPrice — цена поставки актива. Если вдруг пришла цена опциона
+    // (меньше 20% страйка), берём её как есть.
+    const px = price > p.strike * 0.2 ? intrinsic(p.cp, p.strike, price) : price;
+    return Object.assign(base, { side: 'expiry', px, spot: price > p.strike * 0.2 ? price : spot });
+  }
+  return null;
+}
+async function syncBybit() {
+  const from = Math.max(S.cfg.start, (S.lastSync.bybit || 0) - 2 * DAY), now = Date.now();
+  const all = [];
+  for (const coin of ASSETS) {
+    for (let st = from; st < now; st += 7 * DAY) {
+      const en = Math.min(now, st + 7 * DAY);
+      let cursor = '', page = 0;
+      do {
+        const params = { category: 'option', baseCoin: coin, limit: '100', startTime: String(st), endTime: String(en) };
+        if (cursor) params.cursor = cursor;
+        const r = await bybitPrivate('/v5/execution/list', params);
+        for (const x of r.list || []) all.push(mapBybitExec(x));
+        cursor = r.nextPageCursor || '';
+      } while (cursor && ++page < 10);
+    }
+  }
+  return all.filter(Boolean);
+}
+async function syncDeribit() {
+  const from = Math.max(S.cfg.start, (S.lastSync.deribit || 0) - 2 * DAY), now = Date.now();
+  const auth = await deribitAuth(), all = [];
+  for (const cur of ASSETS) {
+    let start = from, guard = 0;
+    while (guard++ < 20) {
+      const r = await deribitPrivate(auth.access_token, 'private/get_user_trades_by_currency_and_time?currency=' + cur +
+        '&kind=option&start_timestamp=' + start + '&end_timestamp=' + now + '&count=1000&sorting=asc&historical=true');
+      const list = r.trades || [];
+      for (const t of list) {
+        const p = parseSym(t.instrument_name); if (!p) continue;
+        const idx = parseFloat(t.index_price) || S.spot[p.asset] || 0;
+        const inCoin = /^(BTC|ETH)$/i.test(t.fee_currency || cur);
+        all.push({ id: 'D' + t.trade_id, src: 'deribit', exch: 'deribit', ts: t.timestamp, asset: p.asset, exp: p.iso, strike: p.strike, cp: p.cp,
+          side: t.direction === 'buy' ? 'buy' : 'sell', qty: parseFloat(t.amount), px: parseFloat(t.price) * idx,
+          fee: (parseFloat(t.fee) || 0) * (inCoin ? idx : 1), spot: idx });
+      }
+      if (!r.has_more || !list.length) break;
+      start = list[list.length - 1].timestamp + 1;
+    }
+    // Поставки: только длинные позиции, выплата = внутренняя стоимость по цене поставки
+    try {
+      const r = await deribitPrivate(auth.access_token, 'private/get_settlement_history_by_currency?currency=' + cur + '&type=delivery&count=1000');
+      for (const s of r.settlements || []) {
+        const p = parseSym(s.instrument_name); if (!p) continue;
+        const pos = parseFloat(s.position);
+        if (!(pos > 0) || s.timestamp < from) continue;
+        const P = parseFloat(s.index_price);
+        all.push({ id: 'DS' + s.instrument_name + '-' + s.timestamp, src: 'deribit', exch: 'deribit', ts: s.timestamp, asset: p.asset, exp: p.iso, strike: p.strike, cp: p.cp,
+          side: 'expiry', qty: pos, px: P > 0 ? intrinsic(p.cp, p.strike, P) : 0, fee: 0, spot: P || 0 });
+      }
+    } catch (e) { console.warn('[deribit settlements]', e.message); }
+  }
+  return all;
+}
+async function syncExchanges() {
+  const btn = $('sync-btn'), st = $('sync-status');
+  if (!S.keys.bybit && !S.keys.deribit) { st.textContent = tr('sync_nokeys'); return; }
+  btn.disabled = true; st.textContent = tr('sync_run');
+  let added = 0; const errs = [];
+  for (const ex of ['bybit', 'deribit']) {
+    if (!S.keys[ex]) continue;
+    try {
+      const list = ex === 'bybit' ? await syncBybit() : await syncDeribit();
+      added += addEntries(list);
+      S.lastSync[ex] = Date.now();
+    } catch (e) { errs.push(tr('sync_err', { ex: ex === 'bybit' ? 'Bybit' : 'Deribit', e: e.message })); }
+  }
+  lsSet('lastSync', S.lastSync); saveLedger();
+  st.textContent = tr('sync_done', { n: added }) + (errs.length ? ' ' + errs.join(' · ') : '');
+  btn.disabled = false;
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════
+// ГРАФИКИ
+// ═══════════════════════════════════════════════════
+function cssVar(n) { return getComputedStyle(document.body).getPropertyValue(n).trim(); }
+function exName(ex) { return ex === 'bybit' ? 'Bybit' : 'Deribit'; }
+
+// Линия (DVOL за год, кривая итога). Базовая высота хранится отдельно:
+// canvas.height после первой отрисовки уже умножен на devicePixelRatio.
+function drawLine(canvas, pts, opts) {
+  if (!canvas.dataset.h) canvas.dataset.h = canvas.getAttribute('height');
+  const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth || 300, h = parseInt(canvas.dataset.h, 10);
+  canvas.width = w * dpr; canvas.height = h * dpr; canvas.style.height = h + 'px';
+  const c = canvas.getContext('2d'); c.scale(dpr, dpr); c.clearRect(0, 0, w, h);
+  c.font = '11px "IBM Plex Sans", sans-serif';
+  if (!pts || pts.length < 2) { c.fillStyle = cssVar('--faint'); c.fillText(tr('na'), 0, h / 2); return; }
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y).concat(opts.hline !== undefined ? [opts.hline] : []).concat(opts.zero ? [0] : []);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs); let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = (y1 - y0) * 0.12 || 1; y0 -= pad; y1 += pad;
+  const X = x => (x - x0) / (x1 - x0 || 1) * (w - 6) + 3, Y = y => h - 16 - (y - y0) / (y1 - y0) * (h - 24);
+  const col = opts.color || cssVar('--ember');
+  if (opts.hline !== undefined) {
+    c.strokeStyle = cssVar('--faint'); c.setLineDash([3, 4]); c.beginPath(); c.moveTo(0, Y(opts.hline)); c.lineTo(w, Y(opts.hline)); c.stroke(); c.setLineDash([]);
+  }
+  if (opts.zero) { c.strokeStyle = cssVar('--line'); c.beginPath(); c.moveTo(0, Y(0)); c.lineTo(w, Y(0)); c.stroke(); }
+  // мягкая заливка под линией
+  const path = new Path2D();
+  pts.forEach((p, i) => { if (opts.step && i > 0) path.lineTo(X(p.x), Y(pts[i - 1].y)); i ? path.lineTo(X(p.x), Y(p.y)) : path.moveTo(X(p.x), Y(p.y)); });
+  const fill = new Path2D(path); fill.lineTo(X(x1), h - 16); fill.lineTo(X(x0), h - 16); fill.closePath();
+  const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, col + '40'); g.addColorStop(1, col + '00');
+  c.fillStyle = g; c.fill(fill);
+  c.strokeStyle = col; c.lineWidth = 2; c.lineJoin = 'round'; c.stroke(path);
+  const last = pts[pts.length - 1];
+  c.fillStyle = col; c.beginPath(); c.arc(X(last.x), Y(last.y), 4, 0, 7); c.fill();
+  c.fillStyle = cssVar('--faint');
+  if (opts.labels) { c.fillText(opts.labels[0], 0, h - 2); const r = opts.labels[1]; c.fillText(r, w - c.measureText(r).width, h - 2); }
+}
+
+// Колокол: логнормальное распределение цены на дату экспирации по текущему DVOL.
+// Хвосты за страйками стрэнгла закрашены — это то, что покупает стратегия.
+function curveSvg(S0, sigma, T, kp, kc) {
+  const W = 340, H = 150, base = 128;
+  const sd = sigma * Math.sqrt(T), mu = Math.log(S0) - 0.5 * sd * sd;
+  const lo = Math.exp(mu - 3.4 * sd), hi = Math.exp(mu + 3.4 * sd);
+  const pdf = x => Math.exp(-Math.pow(Math.log(x) - mu, 2) / (2 * sd * sd)) / (x * sd * Math.sqrt(2 * Math.PI));
+  const N = 160, xs = [];
+  for (let i = 0; i <= N; i++) xs.push(lo + (hi - lo) * i / N);
+  const peak = Math.max(...xs.map(pdf));
+  const X = x => (x - lo) / (hi - lo) * W, Y = y => base - y / peak * (base - 12);
+  const line = xs.map((x, i) => (i ? 'L' : 'M') + X(x).toFixed(1) + ' ' + Y(pdf(x)).toFixed(1)).join(' ');
+  const area = (a, b) => {
+    const seg = xs.filter(x => x >= a && x <= b); if (seg.length < 2) return '';
+    return 'M' + X(seg[0]).toFixed(1) + ' ' + base + ' ' + seg.map(x => 'L' + X(x).toFixed(1) + ' ' + Y(pdf(x)).toFixed(1)).join(' ') + ' L' + X(seg[seg.length - 1]).toFixed(1) + ' ' + base + ' Z';
+  };
+  const mark = (k, anchor) => k > lo && k < hi
+    ? '<line x1="' + X(k).toFixed(1) + '" x2="' + X(k).toFixed(1) + '" y1="' + (base + 4) + '" y2="' + (Y(pdf(k)) - 8).toFixed(1) + '" stroke="var(--ember)" stroke-width="1.5"/>' +
+      '<text x="' + X(k).toFixed(1) + '" y="' + (base + 18) + '" text-anchor="' + anchor + '" fill="var(--ember)" font-size="12" font-weight="600">' + fmtNum(k) + '</text>' : '';
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(tr('curve_note')) + '">' +
+    '<path d="' + area(lo, hi) + '" fill="var(--s2)"/>' +
+    '<path d="' + area(lo, kp) + '" fill="var(--ember)" opacity=".85"/>' +
+    '<path d="' + area(kc, hi) + '" fill="var(--ember)" opacity=".85"/>' +
+    '<path d="' + line + '" fill="none" stroke="var(--muted)" stroke-width="1.5"/>' +
+    '<line x1="0" x2="' + W + '" y1="' + base + '" y2="' + base + '" stroke="var(--line)"/>' +
+    '<line x1="' + X(S0).toFixed(1) + '" x2="' + X(S0).toFixed(1) + '" y1="' + base + '" y2="' + (Y(pdf(S0)) - 6).toFixed(1) + '" stroke="var(--text)" stroke-dasharray="2 3"/>' +
+    '<text x="' + X(S0).toFixed(1) + '" y="' + (base + 18) + '" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">' + fmtNum(S0) + '</text>' +
+    mark(kp, 'end') + mark(kc, 'start') + '</svg>';
+}
+// Риск-нейтральная вероятность оказаться за страйком к экспирации
+function probBeyond(S0, K, sigma, T, cp) {
+  const sd = sigma * Math.sqrt(T); if (!(sd > 0)) return NaN;
+  const d2 = (Math.log(S0 / K) - 0.5 * sd * sd) / sd;
+  return cp === 'C' ? normCDF(d2) : normCDF(-d2);
+}
+
+// ═══════════════════════════════════════════════════
+// ЭКРАНЫ
+// ═══════════════════════════════════════════════════
+function renderSignal() {
+  const a = S.asset, st = dvolStats(S.dvol[a]), S0 = S.spot[a];
+  $('sig-banner').innerHTML = bannerHtml(makePlan(a), a);
+  $('spot-badge').innerHTML = S0 ? a + ' <b>' + fmtUsd(S0, 0) + '</b>' : a;
+  $('dvol-chip').innerHTML = st ? 'DVOL <b>' + st.cur.toFixed(1) + '</b>' : 'DVOL';
+  $('rec-params').innerHTML = '±' + S.cfg.otm + '%, ~' + S.cfg.dte + ' ' + tr('days');
+  const h1 = $('hero-title'), sub = $('hero-sub');
+  if (st) {
+    h1.textContent = tr(st.cheap ? 'hero_cheap' : 'hero_dear'); h1.className = st.cheap ? 'cheap' : 'dear';
+    sub.innerHTML = tr(st.cheap ? 'hero_sub_cheap' : 'hero_sub_dear', { cur: st.cur.toFixed(1), mean: st.mean.toFixed(1), d: Math.abs(st.cur - st.mean).toFixed(1) });
+  } else { h1.textContent = S.dvol[a] === null ? tr('na') : tr('hero_wait'); h1.className = ''; sub.textContent = S.dvol[a] === null ? tr('vol_err') : ''; }
+
+  // рекомендация на двух биржах
+  const recs = ['bybit', 'deribit'].map(ex => recommend(ex, a));
+  const ok = recs.filter(r => r && !r.empty);
+  const best = ok.length === 2 ? (ok[0].unit <= ok[1].unit ? ok[0] : ok[1]) : ok[0];
+
+  // колокол по лучшей рекомендации (или по целевым страйкам, если котировок нет)
+  if (st && S0) {
+    const days = best ? best.days : S.cfg.dte, T = days / 365, sig = st.cur / 100;
+    const kp = best ? best.put.strike : S0 * (1 - S.cfg.otm / 100), kc = best ? best.call.strike : S0 * (1 + S.cfg.otm / 100);
+    $('curve').innerHTML = curveSvg(S0, sig, T, kp, kc);
+    const date = best ? isoToExp(best.iso) : '+' + days + ' ' + tr('days');
+    $('curve-tails').innerHTML =
+      '<div class="tail"><b>' + fmtPct(probBeyond(S0, kp, sig, T, 'P') * 100, 1) + '</b>' + esc(tr('tail_left', { a, k: fmtNum(kp), date })) + '</div>' +
+      '<div class="tail"><b>' + fmtPct(probBeyond(S0, kc, sig, T, 'C') * 100, 1) + '</b>' + esc(tr('tail_right', { a, k: fmtNum(kc), date })) + '</div>';
+  } else { $('curve').innerHTML = ''; $('curve-tails').innerHTML = ''; }
+
+  const bud = budget(), dep = deposit();
+  $('rec-budget').textContent = tr('budget_of', { b: fmtUsd(bud, 0), d: fmtUsd(dep.usd, 0) });
+  $('rec-exch').innerHTML = recs.map((r, i) => {
+    const name = i === 0 ? 'Bybit' : 'Deribit';
+    if (!r || r.empty) return '<div class="ticket"><div class="tname">' + name + '</div><div class="tsub">' + (r ? tr('no_quotes') : tr('loading')) + '</div></div>';
+    const isBest = best === r && ok.length === 2;
+    const side = (lbl, L) => '<div class="line"><span>' + lbl + ' ' + fmtNum(L.q.strike) + '</span><span>' + fmtUsd(L.q.ask, 2) + '</span></div>' +
+      '<div class="line buyq"><span>' + tr('buy_qty') + '</span><span>' + (L.short ? '<span class="loss">' + tr('min_lot', { m: L.min }) + '</span>' : fmtQty(L.qty) + ' ' + a) + '</span></div>';
+    return '<div class="ticket' + (isBest ? ' best' : '') + '"><div class="tname"><span>' + name + '</span>' + (isBest ? '<span class="flag">' + tr('cheaper_flag') + '</span>' : '') + '</div>' +
+      '<div class="tsub">' + tr('exp_in', { d: isoToExp(r.iso), n: Math.round(r.days) }) + '</div>' +
+      side(tr('put'), r.P) + side(tr('call'), r.C) +
+      '<div class="line"><span>' + tr('fee') + '</span><span>' + fmtUsd(r.fee, 2) + '</span></div>' +
+      '<div class="line sum"><span>' + tr('total') + '</span><span>' + fmtUsd(r.total, 2) + '</span></div>' +
+      '<div class="line"><span>' + tr('unit') + '</span><span>' + fmtUsd(r.unit, 2) + '</span></div></div>';
+  }).join('');
+  const ev = $('exch-verdict');
+  if (ok.length === 2) {
+    const other = best === ok[0] ? ok[1] : ok[0], diff = other.unit - best.unit, pct = diff / other.unit * 100;
+    let txt = pct < 2 ? tr('same_ex') : tr('best_ex', { ex: exName(best.exch), d: fmtUsd(diff, 2), p: fmtPct(pct, 0) });
+    if (best.put.strike !== other.put.strike || best.call.strike !== other.call.strike || best.iso !== other.iso) txt += ' ' + tr('strikes_differ');
+    ev.className = 'callout' + (pct < 2 ? ' plain' : ''); ev.textContent = txt;
+  } else { ev.className = 'callout plain'; ev.textContent = ok.length === 1 ? tr('one_ex', { ex: exName(ok[0].exch) }) : tr('loading'); }
+
+  // волатильность за год: шкала мин–средняя–макс и линия
+  if (st) {
+    const pos = v => ((v - st.min) / (st.max - st.min || 1) * 100).toFixed(1) + '%';
+    $('dvol-gauge').innerHTML = '<div class="bar"></div><div class="mean" style="left:' + pos(st.mean) + '"></div><div class="now" style="left:' + pos(st.cur) + '"></div>';
+    $('dvol-gauge-l').innerHTML = '<span>' + tr('g_min', { v: st.min.toFixed(0) }) + '</span><span>' + tr('g_mean', { v: st.mean.toFixed(0) }) + '</span><span>' + tr('g_max', { v: st.max.toFixed(0) }) + '</span>';
+    setText('dvol-mean', st.mean.toFixed(1));
+    setText('dvol-rank', fmtPct(st.rank, 0) + ' / ' + fmtPct(st.pct, 0));
+    const s = S.dvol[a];
+    drawLine($('dvol-chart'), s.map(x => ({ x: x.ts, y: x.close })), { hline: st.mean, color: st.cheap ? cssVar('--gain') : cssVar('--ember'), labels: [fmtDate(s[0].ts), fmtDate(s[s.length - 1].ts)] });
+  }
+}
+
+function legTitle(l) { return (l.cp === 'P' ? tr('put') : tr('call')) + ' ' + fmtNum(l.strike); }
+
+// ── Показатели цикла: вход, страйки, пройденный ценой диапазон, прострелы ──
+function cycleInfo(c) {
+  const buys = c.entries.filter(e => e.side === 'buy');
+  const p = buys.find(e => e.cp === 'P'), cl = buys.find(e => e.cp === 'C');
+  const withSpot = buys.find(e => e.spot > 0);
+  const spot0 = withSpot ? withSpot.spot : (S.spot[c.asset] || null);
+  const end = c.open ? Date.now() : c.end;
+  let lo = Infinity, hi = -Infinity;
+  // дневные свечи внутри цикла; свеча дня входа берётся целиком — небольшое завышение хода
+  for (const k of (S.kl[c.asset] || [])) {
+    if (k.ts + DAY <= c.start || k.ts > end) continue;
+    if (k.l < lo) lo = k.l; if (k.h > hi) hi = k.h;
+  }
+  for (const e of c.entries) if (e.spot > 0) { lo = Math.min(lo, e.spot); hi = Math.max(hi, e.spot); }
+  if (c.open && S.spot[c.asset]) { lo = Math.min(lo, S.spot[c.asset]); hi = Math.max(hi, S.spot[c.asset]); }
+  if (!isFinite(lo) || !isFinite(hi)) { lo = hi = spot0; }
+  // IV опционов на входе — из цен сделок, средняя по ногам
+  const ivs = buys.map(e => impliedVol(e.px, e.spot, e.strike, (expMs(e.exp) - e.ts) / (365 * DAY), e.cp)).filter(v => v);
+  const iv0 = ivs.length ? ivs.reduce((a, b) => a + b, 0) / ivs.length * 100 : null;
+  const pct = v => spot0 ? (v / spot0 - 1) * 100 : 0;
+  const hitP = !!(p && lo <= p.strike), hitC = !!(cl && hi >= cl.strike);
+  return { c, spot0, kp: p ? p.strike : null, kc: cl ? cl.strike : null, lo, hi,
+    up: pct(hi), down: pct(lo), kpPct: p ? pct(p.strike) : null, kcPct: cl ? pct(cl.strike) : null,
+    hitP, hitC, hit: hitP || hitC, iv0, vol: c.vol };
+}
+function shotTag(i) {
+  if (i.hitP && i.hitC) return '<span class="tag dear">' + tr('shot_both') + '</span>';
+  if (i.hitP) return '<span class="tag dear">' + tr('shot_put') + '</span>';
+  if (i.hitC) return '<span class="tag dear">' + tr('shot_call') + '</span>';
+  return '<span class="tag">' + tr('no_shot') + '</span>';
+}
+// Полоса: страйки, точка входа, путь цены; ход за страйк — янтарным
+function rangeStrip(i) {
+  if (!i.spot0) return '';
+  const pts = [i.lo, i.hi, i.spot0].concat(i.kp ? [i.kp] : [], i.kc ? [i.kc] : []);
+  let a = Math.min(...pts), b = Math.max(...pts); const pad = (b - a) * 0.06 || a * 0.02; a -= pad; b += pad;
+  const X = v => ((v - a) / (b - a) * 100);
+  const seg = (x1, x2, klass) => x2 > x1 ? '<div class="' + klass + '" style="left:' + X(x1).toFixed(2) + '%;width:' + (X(x2) - X(x1)).toFixed(2) + '%"></div>' : '';
+  let h = '<div class="strip"><div class="base"></div>' + seg(i.lo, i.hi, 'rng');
+  if (i.kp && i.lo < i.kp) h += seg(i.lo, i.kp, 'over');
+  if (i.kc && i.hi > i.kc) h += seg(i.kc, i.hi, 'over');
+  if (i.kp) h += '<div class="kk" style="left:' + X(i.kp).toFixed(2) + '%"></div>';
+  if (i.kc) h += '<div class="kk" style="left:' + X(i.kc).toFixed(2) + '%"></div>';
+  h += '<div class="e" style="left:' + X(i.spot0).toFixed(2) + '%"></div></div>';
+  const lab = (v, txt, klass) => { const x = X(v); const tf = x < 12 ? 'translateX(0)' : x > 88 ? 'translateX(-100%)' : 'translateX(-50%)'; return '<span class="' + (klass || '') + '" style="left:' + x.toFixed(2) + '%;transform:' + tf + '">' + txt + '</span>'; };
+  h += '<div class="strip-l">' + (i.kp ? lab(i.kp, fmtNum(i.kp), 'kl') : '') + lab(i.spot0, fmtNum(i.spot0)) + (i.kc ? lab(i.kc, fmtNum(i.kc), 'kl') : '') + '</div>';
+  return h;
+}
+function moveText(i) { return tr('move_fmt', { up: '+' + fmtPct(Math.max(0, i.up), 1), down: '−' + fmtPct(Math.max(0, -i.down), 1) }); }
+function volMeta(i) {
+  const v = i.vol || {};
+  return tr('journal_meta', { spot: i.spot0 ? fmtUsd(i.spot0, 0) : '—', dvol: v.dvol ? v.dvol.toFixed(0) : '—', rank: v.rank !== undefined && v.rank !== null ? fmtPct(v.rank, 0) : '—', iv: i.iv0 ? fmtPct(i.iv0, 0) : '—' });
+}
+function cycleItem(i) {
+  const c = i.c, v = i.vol;
+  const vt = v && v.dvol && v.mean ? ' <span class="tag ' + (v.dvol < v.mean ? 'cheap">' + tr('cheap') : 'dear">' + tr('dear')) + '</span>' : '';
+  return '<div class="item"><div class="it"><span class="name">' + sideName(c.side, true) + ', ' + fmtDate(c.start) + ' — ' + (c.open ? tr('cycle_open') : fmtDate(c.end)) + '</span>' +
+    (c.open ? '<span class="tag dear">' + tr('cycle_open') + '</span>' : '<span class="' + cls(c.net) + '" style="font-weight:600;white-space:nowrap">' + fmtSigned(c.net, 2) + ' <span class="muted">' + fmtMult(c.mult) + '</span></span>') + '</div>' +
+    rangeStrip(i) +
+    '<div class="is"><span>' + volMeta(i) + vt + '</span></div>' +
+    '<div class="is"><span>' + moveText(i) + '</span>' + shotTag(i) + '</div></div>';
+}
+
+// Карта прострелов: по горизонтали DVOL на входе, по вертикали ход цены от входа
+function shotsSvg(rows) {
+  const W = 340, H = 220, L = 38, R = 8, T = 12, B = 30, otm = S.cfg.otm;
+  const xs = rows.map(r => r.vol.dvol);
+  let x0 = Math.min(...xs) - 4, x1 = Math.max(...xs) + 4;
+  const lim = Math.max(otm * 1.4, ...rows.map(r => Math.max(r.up, -r.down) * 1.1));
+  const X = v => L + (v - x0) / (x1 - x0) * (W - L - R), Y = v => T + (lim - v) / (2 * lim) * (H - T - B);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(tr('shots_title')) + '">';
+  s += '<line x1="' + L + '" x2="' + W + '" y1="' + Y(0) + '" y2="' + Y(0) + '" stroke="var(--line)"/>';
+  for (const k of [otm, -otm]) {
+    s += '<line x1="' + L + '" x2="' + W + '" y1="' + Y(k).toFixed(1) + '" y2="' + Y(k).toFixed(1) + '" stroke="var(--ember)" stroke-dasharray="4 4" opacity=".7"/>';
+    s += '<text x="' + (L - 6) + '" y="' + (Y(k) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--ember)">' + (k > 0 ? '+' : '−') + otm + '%</text>';
+  }
+  s += '<text x="' + (L - 6) + '" y="' + (Y(0) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--faint)">0</text>';
+  for (const r of rows) {
+    const x = X(r.vol.dvol).toFixed(1);
+    s += '<line x1="' + x + '" x2="' + x + '" y1="' + Y(r.up).toFixed(1) + '" y2="' + Y(r.down).toFixed(1) + '" stroke="var(--muted)" stroke-width="4" stroke-linecap="round" opacity=".55"/>';
+    if (r.kcPct !== null && r.up > r.kcPct) s += '<line x1="' + x + '" x2="' + x + '" y1="' + Y(r.kcPct).toFixed(1) + '" y2="' + Y(r.up).toFixed(1) + '" stroke="var(--ember)" stroke-width="4" stroke-linecap="round"/>';
+    if (r.kpPct !== null && r.down < r.kpPct) s += '<line x1="' + x + '" x2="' + x + '" y1="' + Y(r.kpPct).toFixed(1) + '" y2="' + Y(r.down).toFixed(1) + '" stroke="var(--ember)" stroke-width="4" stroke-linecap="round"/>';
+    s += '<circle cx="' + x + '" cy="' + Y(0).toFixed(1) + '" r="4" fill="var(--text)" stroke="var(--bg)" stroke-width="2"/>';
+    if (!r.c.open) s += '<text x="' + x + '" y="' + (Math.max(T + 9, Y(r.up) - 7)).toFixed(1) + '" text-anchor="middle" font-size="10.5" font-weight="600" fill="' + (r.c.net >= 0 ? 'var(--gain)' : 'var(--loss)') + '">' + fmtMult(r.c.mult) + '</text>';
+  }
+  const ticks = [x0 + 4, (x0 + x1) / 2, x1 - 4].map(v => Math.round(v)).filter((v, i, a) => a.indexOf(v) === i);
+  for (const t of ticks) s += '<text x="' + X(t).toFixed(1) + '" y="' + (H - 14) + '" text-anchor="middle" font-size="11" fill="var(--faint)">' + t + '</text>';
+  s += '<text x="' + ((L + W) / 2) + '" y="' + (H - 1) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + esc(tr('axis_dvol')) + '</text>';
+  return s + '</svg>';
+}
+
+// ── Баннер «что делать сейчас» ──
+function bannerHtml(plan, a) {
+  const by = st => plan.sides.filter(x => x.state === st);
+  const fix = by('fix'), buy = by('buy').concat(by('short')), wait = by('wait'), open = plan.sides.filter(x => x.cycle);
+  const lines = [];
+  for (const x of plan.sides) {
+    const Side = sideName(x.side, true);
+    if (x.state === 'fix') { const l = x.hit.leg; lines.push(tr('ban_fix_line', { leg: legTitle(l).toLowerCase(), q: fmtQty(l.qty), a, bid: fmtUsd(l.q.bid, 2), tp: S.cfg.tp })); }
+    else if (x.state === 'work') lines.push(tr('ban_work_line', { Side, m: fmtMult(x.mult), tp: S.cfg.tp }));
+    else if (x.state === 'settle') lines.push(tr('ban_settle', { Side }));
+    else if (x.state === 'buy') lines.push(tr('ban_buy_line', { Side, q: fmtQty(x.r.qty), a, k: fmtNum(x.r.q.strike), exp: isoToExp(x.rec.iso), ex: exName(x.rec.exch), cost: fmtUsd(x.r.total, 2) }));
+    else if (x.state === 'short') lines.push(tr('ban_short_line', { Side, m: x.r.min, a, b: fmtUsd(budget() / 2, 0) }));
+    else if (x.state === 'noquotes') lines.push(tr('ban_noquotes', { Side }));
+  }
+  if (wait.length) lines.push(tr('ban_wait_line'));
+  let tone, title;
+  const names = arr => arr.map(x => sideName(x.side)).join(tr('and'));
+  if (fix.length) { tone = 'fix'; title = tr('ban_fix_title', { side: names(fix) }); }
+  else if (buy.length) { tone = 'buy'; title = open.length ? tr('ban_buy_title', { side: names(buy) }) : tr('ban_entry_title'); }
+  else if (wait.length && !open.length) { tone = 'wait'; title = tr('ban_wait_title'); }
+  else if (open.length) { tone = 'work'; title = tr('ban_work_title'); }
+  else { tone = 'work'; title = tr('loading'); }
+  return '<div class="banner ' + tone + '" role="status"><b class="t">' + esc(title) + '</b>' + lines.map(l => '<p>' + l + '</p>').join('') + '</div>';
+}
+function fmtQty(q) { return String(+(+q).toFixed(4)); }
+
+function legCard(x, f, a) {
+  const l = f.leg, c = x.cycle, tp = S.cfg.tp;
+  const lp = m => Math.max(0, Math.min(100, Math.log(Math.max(m, 0.01) / 0.1) / Math.log(tp / 0.1) * 100));
+  const ticks = [1, 2, 5, 10].filter(m => m < tp);
+  const track = '<div class="track"><div class="fill" style="width:' + lp(x.mult).toFixed(1) + '%"></div>' +
+    ticks.map(m => '<div class="tick" style="left:' + lp(m).toFixed(1) + '%"></div>').join('') + '</div>' +
+    '<div class="track-l"><span style="left:0">×0.1</span>' + ticks.map(m => '<span style="left:' + lp(m).toFixed(1) + '%">×' + m + '</span>').join('') + '<span style="left:100%">×' + tp + '</span></div>';
+  let sell;
+  if (l.expired) sell = '<div class="sell"><span class="sk">' + tr('expired_wait') + '</span></div>';
+  else if (f.hit) sell = '<div class="sell hit"><span class="sk">' + tr('fix_now') + '</span><span class="sv">' + fmtUsd(l.q.bid, 2) + '<small>' + tr('fix_now_sub', { q: fmtQty(l.qty), a }) + '</small></span></div>';
+  else sell = '<div class="sell"><span class="sk">' + tr('sell_at') + '</span><span class="sv">' + (f.unit ? fmtUsd(f.unit, 2) + (l.exch === 'deribit' && f.coin ? ' <small>' + f.coin.toFixed(4) + ' ' + a + '</small>' : '') : '—') +
+    '<small>' + (f.spot ? tr('sell_when', { a, s: l.cp === 'P' ? '≤' : '≥', p: fmtUsd(f.spot, 0) }) : tr('fix_unreach')) + '</small></span></div>';
+  return '<div class="leg"><div class="lt"><b>' + legTitle(l) + '</b><span class="mult ' + (x.mult >= 1 ? 'gain' : '') + '">' + fmtMult(x.mult) + '</span></div>' +
+    '<div class="is" style="margin:0"><span>' + tr('leg_meta', { q: fmtQty(l.qty), a, ex: exName(l.exch) }) + ', ' + isoToExp(l.exp) + '</span><span>' + (l.q ? tr('bid_mark', { b: fmtUsd(l.q.bid, 2), m: fmtUsd(l.q.mark, 2) }) : '') + '</span></div>' +
+    '<div class="is"><span>' + tr('leg_cost', { cost: fmtUsd(c.cost, 2), val: fmtUsd(c.ret + x.val, 2) }) + '</span><span>' + (l.q ? tr('iv_left', { iv: fmtPct(l.q.iv, 0), n: (l.T * 365).toFixed(1) }) : '') + '</span></div>' +
+    track + sell + '</div>';
+}
+function emptySideCard(x, a) {
+  let body;
+  if (x.state === 'buy') body = tr('slot_buy', { q: fmtQty(x.r.qty), a, k: fmtNum(x.r.q.strike), exp: isoToExp(x.rec.iso), ex: exName(x.rec.exch), ask: fmtUsd(x.r.q.ask, 2), cost: fmtUsd(x.r.total, 2) });
+  else if (x.state === 'short') body = tr('ban_short_line', { Side: sideName(x.side, true), m: x.r.min, a, b: fmtUsd(budget() / 2, 0) });
+  else if (x.state === 'wait') body = tr('slot_wait');
+  else body = tr('loading');
+  return '<div class="leg slot"><div class="lt"><b>' + tr('slot_title', { Side: sideName(x.side, true) }) + '</b></div><p class="muted" style="font-size:14px">' + body + '</p></div>';
+}
+
+function renderPosition() {
+  const a = S.asset, plan = makePlan(a), built = plan.built;
+  $('pos-banner').innerHTML = bannerHtml(plan, a);
+  const open = plan.sides.filter(x => x.cycle);
+  const h1 = $('pos-mult');
+  if (open.length) {
+    const cost = open.reduce((s, x) => s + x.cycle.cost, 0), val = open.reduce((s, x) => s + x.cycle.ret + x.val, 0);
+    const m = cost > 0 ? val / cost : 0;
+    h1.textContent = fmtMult(m); h1.className = m >= 1 ? 'cheap' : '';
+    $('pos-lead').innerHTML = tr('pos_lead2', { val: fmtUsd(val, 2), cost: fmtUsd(cost, 2) });
+    $('pos-chips').innerHTML = open.map(x => '<span class="chip">' + sideName(x.side, true) + ' ' + tr('opened_on', { d: fmtDate(x.cycle.start) }) + '</span>').join('');
+  } else {
+    h1.textContent = tr('pos_none_title'); h1.className = '';
+    $('pos-lead').textContent = tr('pos_empty'); $('pos-chips').innerHTML = '';
+  }
+  $('pos-track').innerHTML = '';
+  $('pos-body').innerHTML = plan.sides.map(x => x.cycle ? plan.fx.filter(f => f.leg.cp === x.side).map(f => legCard(x, f, a)).join('') : emptySideCard(x, a)).join('') +
+    (open.length ? '<p class="note" style="margin:2px 0 6px">' + tr('fix_note') + '</p>' :
+      '<div class="btns" style="margin:4px 0 18px"><button class="btn ghost" onclick="syncExchanges();goTab(\'money\')">' + tr('sync') + '</button><button class="btn ghost" onclick="openManual()">' + tr('add_manual') + '</button></div>');
+
+  // показатели входа открытых циклов, без позиции — прошлый цикл
+  const lastClosed = built.cycles.filter(c => !c.open).sort((x, y) => x.end - y.end).pop();
+  if (open.length) { $('pos-entry-title').textContent = tr('entry_title'); $('pos-entry').innerHTML = open.map(x => cycleItem(cycleInfo(x.cycle))).join(''); }
+  else if (lastClosed) { $('pos-entry-title').textContent = tr('last_cycle'); $('pos-entry').innerHTML = cycleItem(cycleInfo(lastClosed)); }
+  else { $('pos-entry-title').textContent = tr('entry_title'); $('pos-entry').innerHTML = '<p class="empty">' + tr('no_open') + '</p>'; }
+  syncAlerts(plan.fx);
+}
+
+// ── Баланс бирж → депозит ──
+let balBusy = false;
+async function fetchBalances(force) {
+  if (balBusy) return; balBusy = true;
+  try {
+    for (const ex of ['bybit', 'deribit']) {
+      if (!S.keys[ex]) continue;
+      const prev = S.bal[ex];
+      if (!force && prev && Date.now() - prev.ts < 5 * 60000) continue;
+      try {
+        let usd = 0;
+        if (ex === 'bybit') {
+          const r = await bybitPrivate('/v5/account/wallet-balance', { accountType: 'UNIFIED' });
+          const acc = (r.list || [])[0];
+          usd = parseFloat(acc && acc.totalEquity);
+          if (!isFinite(usd)) throw new Error('totalEquity');
+        } else {
+          const auth = await deribitAuth();
+          for (const cur of ['BTC', 'ETH', 'USDC', 'USDT']) {
+            let eq = 0;
+            try { const r = await deribitPrivate(auth.access_token, 'private/get_account_summary?currency=' + cur); eq = parseFloat(r.equity) || 0; } catch (e) { continue; }
+            if (!eq) continue;
+            const px = (cur === 'BTC' || cur === 'ETH') ? (S.spot[cur] || await fetchSpot(cur)) : 1;
+            usd += eq * (px || 0);
+          }
+        }
+        S.bal[ex] = { usd, ts: Date.now() }; delete S.balErr[ex];
+      } catch (e) { S.balErr[ex] = e.message; }
+    }
+    lsSet('bal', S.bal);
+  } finally { balBusy = false; }
+}
+
+function renderMoney() {
+  const a = S.asset, built = buildCycles(a);
+  let out = 0, inn = 0, fees = 0;
+  for (const e of built.entries) {
+    if (e.side === 'buy') out += e.px * e.qty + e.fee; else inn += e.px * e.qty - e.fee;
+    fees += e.fee;
+  }
+  setText('flow-out', fmtUsd(out, out >= 100 ? 0 : 2));
+  setText('flow-in', fmtUsd(inn, inn >= 100 ? 0 : 2));
+  setText('flow-net', fmtSigned(inn - out, 2), cls(inn - out));
+  setText('flow-fees', fmtUsd(fees, 2));
+  const open = built.cycles.find(c => c.open);
+  let openVal = 0;
+  if (open) for (const l of openLegs(a, built)) if (l.q) openVal += l.q.bid * l.qty;
+  setText('flow-openval', open ? fmtUsd(openVal, openVal >= 100 ? 0 : 2) : '—');
+
+  includedEntries(a);   // проставляет e._inc
+  const list = S.ledger.filter(e => e.asset === a).sort((x, y) => y.ts - x.ts);
+  $('ledger-list').innerHTML = list.length ? list.map(e => {
+    const cash = (e.side === 'buy' ? -1 : 1) * (e.px * e.qty) - e.fee;
+    return '<div class="item"><div class="it">' +
+      '<label class="name"><input type="checkbox" class="chk" ' + (e._inc ? 'checked' : '') + ' onchange="toggleIncl(\'' + esc(e.id) + '\', this.checked)">' +
+      '<span>' + tr('side_' + e.side) + ' ' + legTitle(e).toLowerCase() + ', ' + isoToExp(e.exp) + '</span></label>' +
+      '<span class="' + cls(cash) + '" style="font-weight:600;white-space:nowrap">' + fmtSigned(cash, 2) + '</span></div>' +
+      '<div class="is"><span>' + fmtDateTime(e.ts) + ', ' + exName(e.exch) + (e.src === 'manual' ? ', ' + tr('manual_mark') : '') + '</span>' +
+      '<span>' + e.qty + ' × ' + fmtUsd(e.px, 2) + (e.src === 'manual' ? '<a href="#" class="x" aria-label="✕" onclick="delEntry(\'' + esc(e.id) + '\');return false">✕</a>' : '') + '</span></div></div>';
+  }).join('') : '<p class="empty">' + tr('ledger_empty') + '</p>';
+}
+
+function renderStats() {
+  const a = S.asset, built = buildCycles(a);
+  const closed = built.cycles.filter(c => !c.open).sort((x, y) => x.end - y.end);
+  const wins = closed.filter(c => c.net > 0);
+  const net = closed.reduce((s, c) => s + c.net, 0), cost = closed.reduce((s, c) => s + c.cost, 0);
+  setText('st-net', closed.length ? fmtSigned(net, 2) : '—', cls(net));
+  $('st-lead').textContent = closed.length ? tr('st_lead', { n: closed.length, cost: fmtUsd(cost, 2) }) : tr('st_lead_empty');
+  setText('st-cycles', String(closed.length));
+  setText('st-win', closed.length ? fmtPct(wins.length / closed.length * 100, 0) : '—');
+  setText('st-best', closed.length ? fmtMult(Math.max(...closed.map(c => c.mult))) : '—');
+  setText('st-roi', cost > 0 ? fmtPct(net / cost * 100, 0) : '—', cls(net));
+  let cum = 0, peak = 0, dd = 0; const pts = [];
+  if (closed.length) pts.push({ x: closed[0].start, y: 0 });
+  for (const c of closed) { cum += c.net; peak = Math.max(peak, cum); dd = Math.max(dd, peak - cum); pts.push({ x: c.end, y: cum }); }
+  setText('st-dd', closed.length ? (dd > 0 ? fmtUsd(-dd, 0) : '0') : '—', dd > 0 ? 'loss' : '');
+  drawLine($('eq-chart'), pts, { zero: true, step: true, color: cum >= 0 ? cssVar('--gain') : cssVar('--loss'),
+    labels: pts.length ? [fmtDate(pts[0].x), fmtDate(pts[pts.length - 1].x)] : null });
+  setText('st-avgcost', closed.length ? fmtUsd(cost / closed.length, 2) : '—');
+  setText('st-avgdays', closed.length ? (closed.reduce((s, c) => s + (c.end - c.start), 0) / closed.length / DAY).toFixed(1) + ' ' + tr('days') : '—');
+  const infos = built.cycles.map(cycleInfo);
+  const closedI = infos.filter(i => !i.c.open);
+  const plot = infos.filter(i => i.vol && i.vol.dvol && i.spot0);
+  if (infos.length) {
+    const avg = arr => arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0;
+    $('shots-lead').textContent = tr('shots_lead', { h: infos.filter(i => i.hit).length, n: infos.length,
+      up: '+' + fmtPct(avg(infos.map(i => Math.max(0, i.up))), 1), down: '−' + fmtPct(avg(infos.map(i => Math.max(0, -i.down))), 1) });
+    $('shots-chart').innerHTML = plot.length ? shotsSvg(plot) : '';
+    $('shots-note').textContent = tr('shots_note', { otm: S.cfg.otm });
+  } else { $('shots-lead').textContent = tr('shots_empty'); $('shots-chart').innerHTML = ''; $('shots-note').textContent = ''; }
+  const groups = { low: [], high: [], unk: [] };
+  for (const i of closedI) { const v = i.vol; if (v && v.dvol && v.mean) (v.dvol < v.mean ? groups.low : groups.high).push(i); else groups.unk.push(i); }
+  const row = (key, arr) => {
+    if (!arr.length) return '';
+    const n = arr.reduce((s, i) => s + i.c.net, 0), w = arr.filter(i => i.c.net > 0).length / arr.length * 100;
+    return '<div class="item"><div class="it"><span class="name">' + tr(key) + '</span></div><div class="is"><span class="' + cls(n) + '">' + tr('st_split_row', { n: arr.length, h: arr.filter(i => i.hit).length, net: fmtSigned(n, 0), w: fmtPct(w, 0) }) + '</span></div></div>';
+  };
+  $('st-split').innerHTML = (row('st_low', groups.low) + row('st_high', groups.high) + row('st_unknown', groups.unk)) || '<p class="empty">' + tr('st_lead_empty') + '</p>';
+  $('journal').innerHTML = infos.length ? infos.slice().reverse().map(cycleItem).join('') : '<p class="empty">' + tr('cycles_empty') + '</p>';
+}
+
+function renderSettings() {
+  for (const k of ['deposit', 'budgetPct', 'otm', 'dte', 'tp', 'minOtm', 'feeBybit', 'capBybit', 'feeDeribit', 'capDeribit']) { const el = $('cfg-' + k); if (el) el.value = S.cfg[k]; }
+  $('cfg-start').value = new Date(S.cfg.start).toISOString().slice(0, 10);
+  $('cfg-split').value = S.cfg.split;
+  const dep = deposit();
+  $('depo-info').innerHTML = dep.src === 'exchange'
+    ? tr('depo_ex', { d: fmtUsd(dep.usd, 0), parts: ['bybit', 'deribit'].filter(ex => S.keys[ex] && S.bal[ex]).map(ex => exName(ex) + ' ' + fmtUsd(S.bal[ex].usd, 0)).join(', '), b: fmtUsd(budget(), 0) })
+    : tr('depo_manual', { d: fmtUsd(dep.usd, 0), b: fmtUsd(budget(), 0) }) + (Object.keys(S.balErr).length ? ' ' + tr('depo_err', { e: Object.entries(S.balErr).map(([k, v]) => exName(k) + ': ' + v).join('; ') }) : '');
+  $('api-status-list').innerHTML = ['bybit', 'deribit'].map(ex =>
+    '<div class="row"><span class="k">' + exName(ex) + '</span><span class="v ' + (S.keys[ex] ? 'gain' : 'muted') + '">' + (S.keys[ex] ? tr('api_on') : tr('api_off')) + '</span></div>').join('');
+  $('lang-btn').textContent = tr('lang_other');
+}
+
+function renderAll() {
+  document.querySelectorAll('#asset-seg button').forEach(b => b.classList.toggle('active', b.dataset.asset === S.asset));
+  try { renderSignal(); } catch (e) { console.error('signal', e); }
+  try { renderPosition(); } catch (e) { console.error('position', e); }
+  try { renderMoney(); } catch (e) { console.error('money', e); }
+  try { renderStats(); } catch (e) { console.error('stats', e); }
+  try { renderSettings(); } catch (e) { console.error('settings', e); }
+}
+
+// ═══════════════════════════════════════════════════
+// ДЕЙСТВИЯ
+// ═══════════════════════════════════════════════════
+function goTab(t) {
+  S.tab = t; lsSet('tab', t);
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'scr-' + t));
+  document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  $('content').scrollTop = 0;
+  if (t === 'signal' || t === 'stats') setTimeout(() => { renderSignal(); renderStats(); }, 30);   // canvas нужна видимая ширина
+}
+function setAsset(a) { S.asset = a; lsSet('asset', a); renderAll(); refreshAll(false); }
+function toggleIncl(id, val) { S.incl[id] = !!val; saveLedger(); renderAll(); }
+function delEntry(id) { if (!confirm(tr('del_confirm'))) return; S.ledger = S.ledger.filter(e => e.id !== id); delete S.incl[id]; saveLedger(); renderAll(); }
+function openModal(id) { $(id).classList.add('open'); }
+function closeModal(id) { $(id).classList.remove('open'); }
+
+function saveSettings() {
+  const num = (k, min, max) => { const v = parseFloat($('cfg-' + k).value); if (isFinite(v) && v >= min && v <= max) S.cfg[k] = v; };
+  num('deposit', 1, 1e9); num('budgetPct', 0.1, 100); num('otm', 1, 90); num('dte', 3, 365); num('tp', 1.1, 1000); num('minOtm', 0, 90);
+  num('feeBybit', 0, 1); num('capBybit', 0, 100); num('feeDeribit', 0, 1); num('capDeribit', 0, 100);
+  const d = $('cfg-start').value; if (d) S.cfg.start = new Date(d + 'T00:00:00').getTime();
+  S.cfg.split = $('cfg-split').value === 'qty' ? 'qty' : 'usd';
+  lsSet('cfg', S.cfg); showToast(tr('saved')); renderAll();
+}
+
+// ── ключи ──
+let connectEx = 'bybit';
+function openConnect(ex) {
+  connectEx = ex; $('connect-title').textContent = (ex === 'bybit' ? 'Bybit' : 'Deribit') + ' API';
+  $('api-key-input').value = S.keys[ex] ? S.keys[ex].key : ''; $('api-secret-input').value = '';
+  $('connect-status').textContent = ''; openModal('connect-modal');
+}
+async function checkPerms(ex) {
+  if (ex === 'bybit') {
+    const r = await bybitPrivate('/v5/user/query-api', {});
+    const p = r.permissions || {}, arr = k => Array.isArray(p[k]) ? p[k] : [];
+    const w = arr('Wallet');
+    if (w.includes('Withdraw') || w.includes('AccountTransfer') || w.includes('SubMemberTransfer')) return 'danger';
+    if (r.readOnly !== 1 || arr('ContractTrade').length || arr('Spot').length || arr('Options').length || arr('Derivatives').length) return 'warn';
+    return 'safe';
+  }
+  const a = await deribitAuth();
+  const sc = String(a.scope || '').toLowerCase().split(/\s+/);
+  if (sc.some(t => t.includes('wallet:read_write'))) return 'danger';
+  if (sc.some(t => t.includes('trade:read_write') || t.includes('block_trade:read_write'))) return 'warn';
+  return 'safe';
+}
+async function connectExchange() {
+  const key = $('api-key-input').value.trim(), sec = $('api-secret-input').value.trim(), st = $('connect-status');
+  if (!key || !sec) { st.textContent = tr('conn_enter'); st.className = 'status loss'; return; }
+  st.textContent = tr('conn_wait'); st.className = 'status muted';
+  S.keys[connectEx] = { key, secret: sec };
+  lsSet('key-' + connectEx, key); lsSet('sec-' + connectEx, await aesEncrypt(sec));
+  try {
+    const lvl = await checkPerms(connectEx);
+    st.textContent = tr(lvl === 'safe' ? 'conn_ok' : lvl === 'warn' ? 'conn_warn' : 'conn_danger');
+    st.className = 'status ' + (lvl === 'safe' ? 'gain' : 'loss');
+    if (lvl === 'safe') setTimeout(() => closeModal('connect-modal'), 1200);
+    await fetchBalances(true); renderAll();
+  } catch (e) { st.textContent = tr('conn_unknown', { e: e.message }); st.className = 'status ember'; }
+  renderSettings();
+}
+function disconnectExchange() {
+  S.keys[connectEx] = null; delete S.bal[connectEx]; delete S.balErr[connectEx]; lsSet('bal', S.bal); localStorage.removeItem(LS + 'key-' + connectEx); localStorage.removeItem(LS + 'sec-' + connectEx);
+  $('connect-status').textContent = tr('disconnected'); renderSettings();
+}
+
+// ── ручная запись ──
+function onManualSide() { $('m-px-label').textContent = tr($('m-side').value === 'expiry' ? 'm_px_exp' : 'm_px'); }
+function openManual() {
+  const a = S.asset, r = recommend('bybit', a) || recommend('deribit', a);
+  $('m-side').value = 'buy'; onManualSide();
+  $('m-spot').value = S.spot[a] ? Math.round(S.spot[a]) : '';
+  if (r && !r.empty) { $('m-exp').value = r.iso; $('m-strike').value = r.put.strike; $('m-exch').value = r.exch; }
+  const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); $('m-date').value = d.toISOString().slice(0, 16);
+  $('m-qty').value = ''; $('m-px').value = ''; $('m-fee').value = '0'; $('manual-status').textContent = '';
+  openModal('manual-modal');
+}
+function saveManual() {
+  const side = $('m-side').value, cp = $('m-cp').value, strike = parseFloat($('m-strike').value), exp = $('m-exp').value;
+  const qty = parseFloat($('m-qty').value), pxIn = parseFloat($('m-px').value), fee = parseFloat($('m-fee').value) || 0;
+  const spot = parseFloat($('m-spot').value) || 0, ts = $('m-date').value ? new Date($('m-date').value).getTime() : Date.now();
+  if (!(strike > 0) || !exp || !(qty > 0) || !(pxIn >= 0) || !isFinite(pxIn)) { $('manual-status').textContent = tr('m_err'); return; }
+  const px = side === 'expiry' ? intrinsic(cp, strike, pxIn) : pxIn;
+  const id = 'M' + Date.now();
+  S.ledger.push({ id, src: 'manual', exch: $('m-exch').value, ts, asset: S.asset, exp, strike, cp, side, qty, px, fee, spot: side === 'expiry' ? pxIn : spot });
+  S.incl[id] = true;
+  saveLedger(); closeModal('manual-modal'); renderAll();
+}
+
+// ── данные ──
+function exportData() {
+  const data = { app: 'tail-risk', ver: APP_VER, ts: Date.now(), cfg: S.cfg, ledger: S.ledger, incl: S.incl, snaps: S.snaps };
+  const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'tail-risk-' + new Date().toISOString().slice(0, 10) + '.json'; a.click();
+}
+function importData(ev) {
+  const f = ev.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const d = JSON.parse(rd.result);
+      if (d.app !== 'tail-risk' || !Array.isArray(d.ledger)) throw new Error('format');
+      addEntries(d.ledger); Object.assign(S.incl, d.incl || {}); Object.assign(S.snaps, d.snaps || {});
+      if (d.cfg) S.cfg = Object.assign({}, DEFAULT_CFG, d.cfg);
+      lsSet('cfg', S.cfg); saveLedger(); renderAll(); showToast(tr('imported'));
+    } catch (e) { showToast(tr('import_err')); }
+  };
+  rd.readAsText(f); ev.target.value = '';
+}
+function clearData() {
+  if (!confirm(tr('clear_confirm'))) return;
+  S.ledger = []; S.incl = {}; S.snaps = {}; S.lastSync = { bybit: 0, deribit: 0 };
+  saveLedger(); lsSet('lastSync', S.lastSync); renderAll();
+}
+function toggleLang() { S.lang = S.lang === 'ru' ? 'en' : 'ru'; lsSet('lang', S.lang); applyI18n(); renderAll(); }
+function toggleTheme() { S.theme = S.theme === 'dark' ? 'light' : 'dark'; lsSet('theme', S.theme); applyTheme(); renderAll(); }
+function applyTheme() { document.body.classList.toggle('light', S.theme === 'light'); $('theme-color-meta').setAttribute('content', S.theme === 'light' ? '#EDF1EC' : '#0E1A1D'); }
+function applyI18n() {
+  document.documentElement.lang = S.lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+  document.title = tr('app_name');
+}
+
+// ═══════════════════════════════════════════════════
+// ПУШИ: уровни фиксации → алерты по цене актива на Worker из P2.
+// Worker принимает {asset, exchange, price, cond} и шлёт FCM, когда цена
+// пересекает уровень. Работает в Android-приложении (общий Firebase-проект с P2).
+// ═══════════════════════════════════════════════════
+let pendingAlerts = [];
+function buildAlerts(fx) {
+  return fx.filter(f => f.spot).map(f => {
+    const l = f.leg, price = Math.round(f.spot);
+    return { id: 'tr-' + l.asset + '-' + l.exp + '-' + l.strike + '-' + l.cp, asset: l.asset, exchange: l.exch, price,
+      cond: l.cp === 'P' ? 'below' : 'above',
+      name: tr(l.cp === 'P' ? 'alert_put' : 'alert_call', { k: l.strike, a: l.asset, p: fmtUsd(price, 0) }),
+      sound: true, triggered: false, createdAt: new Date().toISOString() };
+  });
+}
+// подпись меняется, только если уровень сдвинулся больше чем на ~0.5%
+function alertSig(al) { return al.map(x => x.id + ':' + x.cond + ':' + Math.round(Math.log(x.price) / 0.005)).join('|'); }
+async function syncAlerts(fx) {
+  pendingAlerts = buildAlerts(fx || []);
+  updatePushStatus();
+  if (!S.push.fcmId) return;
+  const sig = alertSig(pendingAlerts);
+  if (sig === S.push.sent) return;
+  try {
+    const r = await fetch(WORKER_URL + '/fcm-alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fcmId: S.push.fcmId, alerts: pendingAlerts }) });
+    if (r.ok) { S.push.sent = sig; lsSet('push', S.push); updatePushStatus(); }
+  } catch (e) { console.warn('[push sync]', e.message); }
+}
+function updatePushStatus(err) {
+  const el = $('push-status'), btn = $('push-btn');
+  if (err) { el.textContent = tr('push_err', { e: err }); el.className = 'status loss'; btn.style.display = ''; return; }
+  if (S.push.fcmId) { el.textContent = tr('push_on', { n: pendingAlerts.length }); el.className = 'status gain'; btn.style.display = 'none'; }
+  else if (!(window.AndroidBridge && typeof window.AndroidBridge.requestFcmToken === 'function')) { el.textContent = tr('push_web'); el.className = 'status muted'; btn.style.display = 'none'; }
+  else { el.textContent = tr('push_off'); el.className = 'status muted'; btn.style.display = ''; }
+}
+function enablePush() {
+  if (!(window.AndroidBridge && typeof window.AndroidBridge.requestFcmToken === 'function')) { updatePushStatus(); return; }
+  $('push-status').textContent = tr('push_wait');
+  try { window.AndroidBridge.requestFcmToken(); } catch (e) { updatePushStatus(e.message); }
+}
+// Android вызывает после получения токена (тот же контракт, что в P2)
+window.onFcmToken = async function (token) {
+  if (!token) return;
+  try {
+    const r = await fetch(WORKER_URL + '/register-fcm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fcmToken: token, alerts: pendingAlerts }) });
+    if (!r.ok) throw new Error('Worker ' + r.status);
+    const j = await r.json();
+    S.push.fcmId = j.fcmId; S.push.sent = alertSig(pendingAlerts); lsSet('push', S.push);
+    updatePushStatus();
+  } catch (e) { updatePushStatus(e.message); }
+};
+window.onFcmTokenError = function (msg) { updatePushStatus(String(msg || 'error')); };
+
+// ═══════════════════════════════════════════════════
+// ЗАГРУЗКА ДАННЫХ И СТАРТ
+// ═══════════════════════════════════════════════════
+let refreshing = false;
+async function refreshAll(manual) {
+  if (refreshing) return; refreshing = true;
+  const btn = $('refresh-btn'); btn.classList.add('spin');
+  const a = S.asset;
+  try {
+    await fetchSpot(a).catch(e => console.warn('[spot]', e.message));
+    await Promise.allSettled([
+      fetchDvol(a).then(d => { if (!d) S.dvol[a] = null; }),
+      fetchDelivery(a),
+      fetchChain('bybit', a), fetchChain('deribit', a),
+      fetchLots('bybit', a), fetchLots('deribit', a), fetchKlines(a), fetchBalances(false),
+    ]);
+  } finally {
+    refreshing = false; btn.classList.remove('spin');
+    renderAll();
+    if (manual) showToast(tr('refresh', { t: fmtDateTime(Date.now()) }));
+  }
+}
+
+async function init() {
+  loadState();
+  for (const a of ASSETS) { const p = lsGet('spot-' + a, null); if (p) S.spot[a] = p; const d = lsGet('dvol-' + a, null); if (d) S.dvol[a] = d.data; const k = lsGet('kl-' + a, null); if (k) S.kl[a] = k.data; }
+  applyTheme(); applyI18n();
+  goTab(lsGet('tab', 'signal'));
+  await loadKeys();
+  renderAll();
+  await refreshAll(false);
+  setInterval(() => { if (!document.hidden) refreshAll(false); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAll(false); });
+  window.addEventListener('resize', () => { renderSignal(); renderStats(); });
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
