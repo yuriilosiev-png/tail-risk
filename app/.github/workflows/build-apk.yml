@@ -1,0 +1,98 @@
+name: Build APK + AAB
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'build.gradle'
+      - 'gradle.properties'
+      - 'settings.gradle'
+      - 'icon-*.png'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      # Пакет tools убран из репозитория SDK — указываем только platform-tools (как в P2)
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install Android SDK platform 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+      - name: Install Gradle 8.11.1
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.11.1-bin.zip -O /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /opt/gradle
+          echo "/opt/gradle/gradle-8.11.1/bin" >> $GITHUB_PATH
+      # Секрет GOOGLE_SERVICES_JSON — содержимое google-services.json как есть, без base64
+      - name: Write google-services.json
+        env:
+          GS: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          printf '%s' "$GS" > app/google-services.json
+          grep -q '"com.options.tailrisk"' app/google-services.json || { echo "В google-services.json нет приложения com.options.tailrisk — добавь его в Firebase и скачай файл заново"; exit 1; }
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/tail-risk.jks
+          test -s app/tail-risk.jks || { echo "Секрет KEYSTORE_BASE64 пустой"; exit 1; }
+      # Иконки: легаси (ic_launcher) + адаптивная (foreground/background)
+      - name: Copy icons to app res
+        run: |
+          set -e
+          RES=app/src/main/res
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do mkdir -p $RES/mipmap-$d; done
+          mkdir -p $RES/mipmap-anydpi-v26
+          cp icon-72.png  $RES/mipmap-mdpi/ic_launcher.png
+          cp icon-192.png $RES/mipmap-hdpi/ic_launcher.png
+          cp icon-192.png $RES/mipmap-xhdpi/ic_launcher.png
+          cp icon-512.png $RES/mipmap-xxhdpi/ic_launcher.png
+          cp icon-512.png $RES/mipmap-xxxhdpi/ic_launcher.png
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            cp $RES/mipmap-$d/ic_launcher.png $RES/mipmap-$d/ic_launcher_round.png
+            cp icon-fg-432.png $RES/mipmap-$d/ic_launcher_foreground.png
+            cp icon-bg-432.png $RES/mipmap-$d/ic_launcher_background.png
+          done
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="utf-8"?>' \
+            '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' \
+            '    <background android:drawable="@mipmap/ic_launcher_background"/>' \
+            '    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>' \
+            '</adaptive-icon>' > $RES/mipmap-anydpi-v26/ic_launcher.xml
+          cp $RES/mipmap-anydpi-v26/ic_launcher.xml $RES/mipmap-anydpi-v26/ic_launcher_round.xml
+      # APK — для установки на телефон (быстрый тест)
+      - name: Build release APK
+        run: gradle assembleRelease --no-daemon
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          KEYSTORE_PATH: ${{ github.workspace }}/app/tail-risk.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      # AAB — для загрузки в Google Play
+      - name: Build release AAB
+        run: gradle bundleRelease --no-daemon
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          KEYSTORE_PATH: ${{ github.workspace }}/app/tail-risk.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TailRisk-APK
+          path: "**/*release*.apk"
+          retention-days: 30
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: TailRisk-AAB
+          path: "**/*release*.aab"
+          retention-days: 30
