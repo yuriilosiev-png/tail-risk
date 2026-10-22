@@ -37,7 +37,7 @@
   <!-- ============ ENGLISH ============ -->
   <div data-lang="en" class="show">
     <h1>Privacy Policy</h1>
-    <p class="muted">App: Tail Risk &nbsp;·&nbsp; Last updated: October 11, 2026</p>
+    <p class="muted">App: Tail Risk &nbsp;·&nbsp; Last updated: October 22, 2026</p>
 
     <div class="box">
       <p>This Privacy Policy explains how <strong>Tail Risk</strong> (the "App") handles information. The App is a standalone tracker for a strategy of buying far out-of-the-money crypto options. It is <strong>not a broker</strong>, does not execute trades, and does not provide personalized financial advice.</p>
@@ -51,13 +51,16 @@
       <li>Your exchange API keys are stored <strong>only on your device</strong>, encrypted, and are <strong>never</strong> sent to our servers.</li>
       <li>For optional price-alert push notifications, a Firebase Cloud Messaging (FCM) token is stored on our backend (Cloudflare Worker KV). This token does not identify you personally.</li>
       <li>Market prices are fetched directly from public exchange APIs.</li>
+      <li><strong>Optional cloud backup.</strong> If you create an account (email and password) in Settings → Cloud, your trade history, cash-flow records and P2P order summaries are stored in Google Firebase (Cloud Firestore, EU region) under your account, so they survive after the exchange stops returning them. Exchange API keys are never uploaded.</li>
     </ul>
 
     <h2>2. What data the App processes</h2>
     <table>
       <tr><th>Data</th><th>Where it is stored</th><th>Purpose</th><th>Sent to developer?</th></tr>
       <tr><td>Exchange API keys (Bybit / Deribit)</td><td>Your device only (browser localStorage, AES-GCM encrypted)</td><td>Fetch your positions and market data directly from the exchange</td><td>No</td></tr>
-      <tr><td>Trade history and account balance (read with your keys) and trades you enter manually</td><td>Your device only (localStorage)</td><td>Strategy cash flow, statistics and position sizing</td><td>No</td></tr>
+      <tr><td>Trade history and account balance (read with your keys) and trades you enter manually</td><td>Your device (localStorage); if Cloud is enabled, also Google Firebase under your account</td><td>Strategy cash flow, statistics and position sizing</td><td>Stored only in your own cloud account; not shared</td></tr>
+      <tr><td>Cash-flow records: transfers to/from the trading account, completed P2P orders (date, side, amount, price, coin, fiat currency, fee), deposits/withdrawals you enter manually</td><td>Your device; if Cloud is enabled, also Google Firebase under your account</td><td>Monthly cash-flow table and averages</td><td>Stored only in your own cloud account; counterparty names and IDs are not saved</td></tr>
+      <tr><td>Email address and password (only if you enable Cloud)</td><td>Firebase Authentication (Google); the password is never stored by the App</td><td>Sign-in to your cloud backup</td><td>Used only for your account</td></tr>
       <tr><td>FCM push token</td><td>Our backend (Cloudflare Worker KV)</td><td>Deliver price-alert notifications you configure</td><td>Stored on backend, not shared with third parties</td></tr>
       <tr><td>Price-alert settings</td><td>Your device + backend (for alert checks)</td><td>Trigger notifications when your price condition is met</td><td>Used only to send your own alerts</td></tr>
       <tr><td>Market prices / options chains</td><td>Not stored persistently</td><td>Display and calculation</td><td>Fetched from public exchange APIs</td></tr>
@@ -72,6 +75,7 @@
     <h2>5. Third-party services</h2>
     <ul>
       <li><strong>Firebase Cloud Messaging (Google)</strong> — push notification delivery. See Google's privacy policy.</li>
+      <li><strong>Firebase Authentication and Cloud Firestore (Google)</strong> — optional account and cloud backup of your trade and cash-flow records (Firestore region eur3, Europe).</li>
       <li><strong>Cloudflare</strong> — backend hosting (Worker + KV storage) for alert checks and token storage.</li>
       <li><strong>Bybit / Deribit public APIs</strong> — market data and, with your keys, your position data.</li>
       <li><strong>Google Fonts</strong> — the App loads its typefaces from Google's servers, which receive your IP address as part of a normal web request.</li>
@@ -79,7 +83,7 @@
     </ul>
 
     <h2>6. Data retention and deletion</h2>
-    <p>Data stored on your device persists until you clear it or uninstall the App. The FCM token on our backend is retained while alerts are active and removed on disable or upon a deletion request. To request deletion of any backend data, email <a href="mailto:yuriilosiev@gmail.com">yuriilosiev@gmail.com</a>.</p>
+    <p>Data stored on your device persists until you clear it or uninstall the App. Cloud data is kept while your account exists; you can delete the account together with all cloud data at any time in Settings → Cloud → “Delete account and cloud data”, or by request (see <a href="data-deletion.html">Data Deletion</a>). The FCM token on our backend is retained while alerts are active and removed on disable or upon a deletion request. To request deletion of any backend data, email <a href="mailto:yuriilosiev@gmail.com">yuriilosiev@gmail.com</a>.</p>
 
     <h2>7. Children</h2>
     <p>The App is not directed to children under 18 and is intended for adult users interested in derivatives analytics.</p>
@@ -97,7 +101,7 @@
   <!-- ============ RUSSIAN ============ -->
   <div data-lang="ru">
     <h1>Политика конфиденциальности</h1>
-    <p class="muted">Приложение: Tail Risk &nbsp;·&nbsp; Обновлено: 11 октября 2026</p>
+    <p class="muted">Приложение: Tail Risk &nbsp;·&nbsp; Обновлено: 22 октября 2026</p>
 
     <div class="box">
       <p>Данная Политика объясняет, как приложение <strong>Tail Risk</strong> («Приложение») обрабатывает информацию. Приложение — это автономный трекер стратегии покупки дальних опционов вне денег на криптовалюты. Оно <strong>не является брокером</strong>, не совершает сделок и не предоставляет персональных финансовых советов.</p>
@@ -111,13 +115,16 @@
       <li>Ваши API-ключи бирж хранятся <strong>только на вашем устройстве</strong> в зашифрованном виде и <strong>никогда</strong> не отправляются на наши серверы.</li>
       <li>Для опциональных push-уведомлений о ценах токен Firebase Cloud Messaging (FCM) хранится на нашем бэкенде (Cloudflare Worker KV). Этот токен вас лично не идентифицирует.</li>
       <li>Рыночные цены берутся напрямую из публичных API бирж.</li>
+      <li><strong>Облачная копия (по желанию).</strong> Если вы создадите аккаунт (почта и пароль) в «Настройки → Облако», история сделок, записи денежного потока и сводка P2P-ордеров хранятся в Google Firebase (Cloud Firestore, регион ЕС) в вашем аккаунте, чтобы не пропасть, когда биржа перестанет их отдавать. API-ключи бирж в облако не загружаются.</li>
     </ul>
 
     <h2>2. Какие данные обрабатывает Приложение</h2>
     <table>
       <tr><th>Данные</th><th>Где хранятся</th><th>Цель</th><th>Передаются разработчику?</th></tr>
       <tr><td>API-ключи бирж (Bybit / Deribit)</td><td>Только на устройстве (localStorage, шифрование AES-GCM)</td><td>Получение позиций и рыночных данных напрямую с биржи</td><td>Нет</td></tr>
-      <tr><td>История сделок и баланс счёта (читаются вашими ключами) и сделки, введённые вручную</td><td>Только на устройстве (localStorage)</td><td>Денежный поток, статистика и расчёт объёма входа</td><td>Нет</td></tr>
+      <tr><td>История сделок и баланс счёта (читаются вашими ключами) и сделки, введённые вручную</td><td>На устройстве (localStorage); при включённом облаке — также в Google Firebase в вашем аккаунте</td><td>Денежный поток, статистика и расчёт объёма входа</td><td>Хранится только в вашем облачном аккаунте, никому не передаётся</td></tr>
+      <tr><td>Записи денежного потока: переводы на торговый счёт и с него, завершённые P2P-ордера (дата, сторона, сумма, курс, монета, фиатная валюта, комиссия), пополнения и выводы, введённые вручную</td><td>На устройстве; при включённом облаке — также в Google Firebase в вашем аккаунте</td><td>Таблица потока по месяцам и средние значения</td><td>Только в вашем облачном аккаунте; имена и ID контрагентов не сохраняются</td></tr>
+      <tr><td>Почта и пароль (только если включено облако)</td><td>Firebase Authentication (Google); пароль Приложение не хранит</td><td>Вход в облачную копию</td><td>Используется только для вашего аккаунта</td></tr>
       <tr><td>FCM push-токен</td><td>Наш бэкенд (Cloudflare Worker KV)</td><td>Доставка настроенных вами уведомлений о ценах</td><td>Хранится на бэкенде, третьим лицам не передаётся</td></tr>
       <tr><td>Настройки ценовых алертов</td><td>Устройство + бэкенд (для проверки)</td><td>Срабатывание уведомлений при выполнении условия по цене</td><td>Используются только для ваших алертов</td></tr>
       <tr><td>Рыночные цены / цепочки опционов</td><td>Постоянно не хранятся</td><td>Отображение и расчёт</td><td>Берутся из публичных API бирж</td></tr>
@@ -132,6 +139,7 @@
     <h2>5. Сторонние сервисы</h2>
     <ul>
       <li><strong>Firebase Cloud Messaging (Google)</strong> — доставка push-уведомлений. См. политику конфиденциальности Google.</li>
+      <li><strong>Firebase Authentication и Cloud Firestore (Google)</strong> — необязательный аккаунт и облачная копия сделок и денежного потока (регион Firestore eur3, Европа).</li>
       <li><strong>Cloudflare</strong> — хостинг бэкенда (Worker + KV) для проверки алертов и хранения токена.</li>
       <li><strong>Публичные API Bybit / Deribit</strong> — рыночные данные и, с вашими ключами, данные ваших позиций.</li>
       <li><strong>Google Fonts</strong> — Приложение загружает шрифты с серверов Google, которые получают ваш IP-адрес как при обычном веб-запросе.</li>
@@ -139,7 +147,7 @@
     </ul>
 
     <h2>6. Хранение и удаление данных</h2>
-    <p>Данные на устройстве хранятся до их очистки или удаления Приложения. FCM-токен на бэкенде хранится, пока активны алерты, и удаляется при отключении или по запросу. Для удаления любых данных с бэкенда напишите на <a href="mailto:yuriilosiev@gmail.com">yuriilosiev@gmail.com</a>.</p>
+    <p>Данные на устройстве хранятся до их очистки или удаления Приложения. Данные в облаке хранятся, пока существует ваш аккаунт; удалить аккаунт вместе со всеми облачными данными можно в любой момент: «Настройки → Облако → Удалить аккаунт и данные в облаке» или по запросу (см. <a href="data-deletion.html">Удаление данных</a>). FCM-токен на бэкенде хранится, пока активны алерты, и удаляется при отключении или по запросу. Для удаления любых данных с бэкенда напишите на <a href="mailto:yuriilosiev@gmail.com">yuriilosiev@gmail.com</a>.</p>
 
     <h2>7. Дети</h2>
     <p>Приложение не предназначено для лиц младше 18 лет и рассчитано на взрослых пользователей, интересующихся аналитикой деривативов.</p>

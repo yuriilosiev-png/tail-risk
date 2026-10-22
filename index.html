@@ -120,6 +120,14 @@ canvas { width: 100%; display: block; }
 .sell .sv small { display: block; font-family: var(--body); font-size: 12.5px; font-weight: 500; color: var(--muted); }
 
 /* сводка: три числа */
+.mtable { font-size: 13.5px; }
+.mtable .mh, .mtable .mr { display: grid; grid-template-columns: 1.1fr 1fr 1fr 1.1fr; gap: 6px; padding: 7px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.mtable .mh { color: var(--muted); font-size: 12px; padding-top: 0; }
+.mtable .mh > span:not(:first-child), .mtable .mr > span:not(:first-child) { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.mtable .mr.cur > span:first-child::after { content: ' •'; color: var(--ember); }
+.mtable .mr.avg { border-bottom: none; border-top: 1px solid var(--muted); font-weight: 600; }
+.mf-day { font-size: 14px; color: var(--muted); margin: 0 0 8px; }
+.mf-day b { color: var(--text); }
 .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .trio > div { min-width: 0; }
 .trio .l { font-size: 12.5px; color: var(--muted); }
@@ -360,6 +368,24 @@ body.light .bigline { color: var(--text); }
       <div class="status muted" id="sync-status"></div>
 
       <section class="block" style="margin-top:16px">
+        <h2><span data-i18n="mf_title">Поток по месяцам</span><small data-i18n="mf_sub">обе монеты, все биржи</small></h2>
+        <div id="mflow"></div>
+        <div class="btns">
+          <button class="btn ghost" onclick="openFlowManual('in')" data-i18n="mf_add_in">+ Завёл</button>
+          <button class="btn ghost" onclick="openFlowManual('out')" data-i18n="mf_add_out">− Вывел</button>
+        </div>
+        <button class="btn small ghost" style="margin-top:8px" onclick="syncFlows(true)" data-i18n="mf_sync">Обновить переводы</button>
+        <div class="status muted" id="flow-status"></div>
+        <div id="mflow-p2p-wrap" style="display:none;margin-top:18px">
+          <h2 style="font-size:16px" data-i18n="mf_p2p">P2P по месяцам</h2>
+          <div id="mflow-p2p"></div>
+          <p class="note" data-i18n="mf_p2p_note"></p>
+        </div>
+        <h2 style="font-size:16px;margin-top:18px" data-i18n="mf_list">Записи потока</h2>
+        <div id="flow-list"></div>
+      </section>
+
+      <section class="block" style="margin-top:16px">
         <h2><span data-i18n="ledger_title">Сделки</span><button class="btn small ghost" onclick="openManual()" data-i18n="add_manual">Добавить вручную</button></h2>
         <p class="note" style="margin-top:0" data-i18n="ledger_hint">Отмеченные сделки входят в стратегию.</p>
         <div id="ledger-list"></div>
@@ -432,6 +458,25 @@ body.light .bigline { color: var(--text); }
         <p class="note" data-i18n="api_note"></p>
       </section>
       <section class="block">
+        <h2 data-i18n="cl_title">Облако</h2>
+        <p class="lead" id="cl-info" style="margin:0 0 6px;font-size:14px"></p>
+        <div id="cl-form">
+          <label class="f" data-i18n="cl_email">Почта</label><input type="email" id="cl-email" autocomplete="username" autocapitalize="off" spellcheck="false">
+          <label class="f" data-i18n="cl_pass">Пароль</label><input type="password" id="cl-pass" autocomplete="current-password">
+          <div class="btns">
+            <button class="btn" onclick="cloudLogin(false)" data-i18n="cl_login">Войти</button>
+            <button class="btn ghost" onclick="cloudLogin(true)" data-i18n="cl_signup">Создать аккаунт</button>
+          </div>
+        </div>
+        <div class="btns" id="cl-actions" style="display:none">
+          <button class="btn ghost" onclick="cloudSync(false)" data-i18n="cl_sync">Синхронизировать</button>
+          <button class="btn ghost" onclick="cloudLogout()" data-i18n="cl_logout">Выйти</button>
+        </div>
+        <button class="btn small ghost" id="cl-del" style="display:none;margin-top:8px;color:var(--loss)" onclick="cloudDeleteAccount()" data-i18n="cl_delete">Удалить аккаунт и данные в облаке</button>
+        <div class="status" id="cl-status"></div>
+        <p class="note" data-i18n="cl_note"></p>
+      </section>
+      <section class="block">
         <h2 data-i18n="set_fees">Комиссии бирж</h2>
         <div class="grid2">
           <div><label class="f">Bybit, <span data-i18n="of_index">% от индекса</span></label><input type="number" id="cfg-feeBybit" step="0.001"></div>
@@ -500,6 +545,20 @@ body.light .bigline { color: var(--text); }
     </div>
     <button class="btn" style="margin-top:14px" onclick="saveManual()" data-i18n="save">Сохранить</button>
     <div class="status loss" id="manual-status"></div>
+  </div>
+</div>
+
+<!-- пополнение / вывод вручную -->
+<div class="modal" id="flow-modal" onclick="if(event.target===this)closeModal('flow-modal')">
+  <div class="sheet">
+    <h2><span id="fm-title">—</span><button class="round" onclick="closeModal('flow-modal')" aria-label="✕">✕</button></h2>
+    <div class="grid2">
+      <div><label class="f" data-i18n="fm_amt">Сумма, $</label><input type="number" id="fm-amt" inputmode="decimal" step="0.01"></div>
+      <div><label class="f" data-i18n="fm_date">Дата</label><input type="date" id="fm-date"></div>
+    </div>
+    <label class="f" data-i18n="fm_note">Заметка</label><input type="text" id="fm-note" maxlength="80">
+    <button class="btn" style="margin-top:14px" onclick="saveFlowManual()" data-i18n="save">Сохранить</button>
+    <div class="status loss" id="fm-status"></div>
   </div>
 </div>
 
@@ -774,7 +833,7 @@ function loadState() {
   S.lastSync = Object.assign({ bybit: 0, deribit: 0 }, lsGet('lastSync', {}));
   S.push = Object.assign({ fcmId: null, sent: '' }, lsGet('push', {}));
 }
-function saveLedger() { lsSet('ledger', S.ledger); lsSet('incl', S.incl); lsSet('snaps', S.snaps); }
+function saveLedger() { lsSet('ledger', S.ledger); lsSet('incl', S.incl); lsSet('snaps', S.snaps); if (typeof cloudSoon === 'function') cloudSoon(); }
 
 // ── ФОРМАТЫ ──
 function tr(key, vars) {
@@ -1055,6 +1114,461 @@ function impliedVol(px, S0, K, T, cp) {
   if (bsPrice(S0, K, T, hi, cp) < px) return null;
   for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (bsPrice(S0, K, T, m, cp) < px) lo = m; else hi = m; }
   return (lo + hi) / 2;
+}
+</script>
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════
+// ДЕНЕЖНЫЙ ПОТОК: переводы на торговый счёт, P2P, ручные записи,
+// таблица по месяцам и облачное хранилище (Firebase, REST без SDK)
+// ═══════════════════════════════════════════════════
+
+// Конфигурация web-приложения Firebase (не секрет: она открыта в коде любой веб-страницы,
+// доступ к данным закрыт правилами Firestore — каждый видит только users/{свой uid})
+const FB = {
+  apiKey: 'AIzaSyDrEgXVJ5DEWOZpcpmMOHB9T6cpTNIn3kY',
+  projectId: 'options-analyst-be141',
+};
+const FS_BASE = 'https://firestore.googleapis.com/v1/projects/' + FB.projectId + '/databases/(default)/documents';
+const FLOW_DEPTH = 180 * DAY;            // глубина первой загрузки: Bybit отдаёт P2P максимум за 180 дней
+
+Object.assign(I18N.ru, {
+  mf_title: 'Поток по месяцам', mf_sub: 'обе монеты, все биржи',
+  mf_month: 'Месяц', mf_in: 'Завёл', mf_out: 'Вывел', mf_opt: 'Опционы', mf_avg: 'Среднее',
+  mf_avg_note: 'Среднее за месяц — по {n} полным месяцам. Текущий и неполный первый месяц не входят.',
+  mf_avg_note_cur: 'Полных месяцев пока нет — среднее по текущему.',
+  mf_empty: 'Записей пока нет. Нажми «Обновить переводы» или добавь пополнение вручную.',
+  mf_day: 'В этом месяце заведено <b>{m}</b>, в среднем <b>{d}</b> в день.',
+  mf_p2p: 'P2P по месяцам', mf_p2p_buy: 'Куплено', mf_p2p_sell: 'Продано', mf_p2p_n: 'Ордеров',
+  mf_p2p_note: 'Завершённые P2P-ордера Bybit, в монете ордера (обычно USDT). Это оборот мерчанта, в «Завёл» он не входит: туда попадают только переводы на торговый счёт.',
+  mf_sync: 'Обновить переводы', mf_add_in: '+ Завёл', mf_add_out: '− Вывел',
+  mf_sync_run: 'Загружаю переводы и P2P…', mf_sync_done: 'Новых записей: {n}.',
+  mf_sync_nokey: 'Для автозагрузки нужен ключ Bybit (Настройки → Ключи бирж). Можно записывать вручную.',
+  mf_err_tr: 'Переводы: {e}', mf_err_p2p: 'P2P: {e}',
+  mf_list: 'Записи потока', mf_kind_in: 'Завёл', mf_kind_out: 'Вывел', mf_kind_p2p_buy: 'P2P покупка', mf_kind_p2p_sell: 'P2P продажа',
+  mf_src_bybit: 'перевод Bybit', mf_src_manual: 'вручную', mf_more: 'Показать все ({n})',
+  fm_title_in: 'Записать пополнение', fm_title_out: 'Записать вывод', fm_amt: 'Сумма, $', fm_date: 'Дата', fm_note: 'Заметка', fm_note_ph: 'например, P2P Bybit',
+  fm_err: 'Укажи сумму больше нуля.',
+  cl_title: 'Облако', cl_note: 'Сделки и денежный поток сохраняются в Firebase и не пропадут, когда биржа перестанет их отдавать (P2P — 180 дней). Ключи бирж в облако не попадают.',
+  cl_email: 'Почта', cl_pass: 'Пароль (от 6 символов)', cl_login: 'Войти', cl_signup: 'Создать аккаунт', cl_logout: 'Выйти', cl_sync: 'Синхронизировать',
+  cl_on: 'Вход выполнен: <b>{e}</b>. Последняя синхронизация: {t}.', cl_off: 'Не подключено. Данные пока только на этом устройстве.',
+  cl_busy: 'Подключаюсь…', cl_synced: 'Синхронизировано: отправлено {up}, получено {down}.',
+  cl_err: 'Облако: {e}', cl_never: 'ещё не было',
+  cl_e_EMAIL_EXISTS: 'такая почта уже зарегистрирована — нажми «Войти»',
+  cl_e_INVALID_LOGIN_CREDENTIALS: 'неверная почта или пароль', cl_e_INVALID_PASSWORD: 'неверный пароль', cl_e_EMAIL_NOT_FOUND: 'почта не найдена — нажми «Создать аккаунт»',
+  cl_e_WEAK_PASSWORD: 'пароль слишком короткий (нужно от 6 символов)', cl_e_INVALID_EMAIL: 'почта указана с ошибкой',
+  cl_e_TOO_MANY_ATTEMPTS_TRY_LATER: 'слишком много попыток, попробуй позже',
+  cl_delete: 'Удалить аккаунт и данные в облаке', cl_del_confirm: 'Удалить аккаунт и все данные в облаке? На этом телефоне сделки и поток останутся.',
+  cl_deleted: 'Аккаунт и данные в облаке удалены.', cl_e_CREDENTIAL_TOO_OLD_LOGIN_AGAIN: 'нужно заново войти и сразу удалить',
+});
+Object.assign(I18N.en, {
+  mf_title: 'Cash flow by month', mf_sub: 'both coins, all exchanges',
+  mf_month: 'Month', mf_in: 'In', mf_out: 'Out', mf_opt: 'Options', mf_avg: 'Average',
+  mf_avg_note: 'Monthly average over {n} full months. The current month and a partial first month are excluded.',
+  mf_avg_note_cur: 'No full months yet — average of the current one.',
+  mf_empty: 'No records yet. Tap “Refresh transfers” or add a deposit manually.',
+  mf_day: 'This month in: <b>{m}</b>, about <b>{d}</b> a day.',
+  mf_p2p: 'P2P by month', mf_p2p_buy: 'Bought', mf_p2p_sell: 'Sold', mf_p2p_n: 'Orders',
+  mf_p2p_note: 'Completed Bybit P2P orders, in the order coin (usually USDT). This is merchant turnover and is not counted as “In”: only transfers to the trading account are.',
+  mf_sync: 'Refresh transfers', mf_add_in: '+ Deposit', mf_add_out: '− Withdraw',
+  mf_sync_run: 'Loading transfers and P2P…', mf_sync_done: 'New records: {n}.',
+  mf_sync_nokey: 'Auto-loading needs a Bybit key (Settings → Exchange keys). You can add records manually.',
+  mf_err_tr: 'Transfers: {e}', mf_err_p2p: 'P2P: {e}',
+  mf_list: 'Cash flow records', mf_kind_in: 'Deposit', mf_kind_out: 'Withdrawal', mf_kind_p2p_buy: 'P2P buy', mf_kind_p2p_sell: 'P2P sell',
+  mf_src_bybit: 'Bybit transfer', mf_src_manual: 'manual', mf_more: 'Show all ({n})',
+  fm_title_in: 'Record a deposit', fm_title_out: 'Record a withdrawal', fm_amt: 'Amount, $', fm_date: 'Date', fm_note: 'Note', fm_note_ph: 'e.g. Bybit P2P',
+  fm_err: 'Enter an amount above zero.',
+  cl_title: 'Cloud', cl_note: 'Trades and cash flow are saved to Firebase, so they survive after the exchange stops returning them (P2P: 180 days). Exchange keys never go to the cloud.',
+  cl_email: 'Email', cl_pass: 'Password (6+ characters)', cl_login: 'Sign in', cl_signup: 'Create account', cl_logout: 'Sign out', cl_sync: 'Sync now',
+  cl_on: 'Signed in: <b>{e}</b>. Last sync: {t}.', cl_off: 'Not connected. Data lives only on this device.',
+  cl_busy: 'Connecting…', cl_synced: 'Synced: sent {up}, received {down}.',
+  cl_err: 'Cloud: {e}', cl_never: 'never',
+  cl_e_EMAIL_EXISTS: 'this email is already registered — tap “Sign in”',
+  cl_e_INVALID_LOGIN_CREDENTIALS: 'wrong email or password', cl_e_INVALID_PASSWORD: 'wrong password', cl_e_EMAIL_NOT_FOUND: 'email not found — tap “Create account”',
+  cl_e_WEAK_PASSWORD: 'password too short (6+ characters)', cl_e_INVALID_EMAIL: 'email looks wrong',
+  cl_e_TOO_MANY_ATTEMPTS_TRY_LATER: 'too many attempts, try later',
+  cl_delete: 'Delete account and cloud data', cl_del_confirm: 'Delete the account and all cloud data? Trades and cash flow stay on this phone.',
+  cl_deleted: 'Account and cloud data deleted.', cl_e_CREDENTIAL_TOO_OLD_LOGIN_AGAIN: 'sign in again and delete right away',
+});
+
+// ── состояние ──
+S.flows = [];                                   // записи потока
+S.flowSync = { tr: 0, p2p: 0, err: '' };        // время последней загрузки
+S.cloud = { email: '', uid: '', rt: '', idToken: '', exp: 0, last: 0, err: '', sent: {}, del: [] };
+let flowsShowAll = false;
+
+function loadFlows() {
+  S.flows = lsGet('flows', []);
+  S.flowSync = Object.assign({ tr: 0, p2p: 0, err: '' }, lsGet('flowSync', {}));
+  const c = lsGet('cloud', {});
+  S.cloud = Object.assign(S.cloud, { email: c.email || '', uid: c.uid || '', rt: c.rt || '', last: c.last || 0, sent: lsGet('cloudSent', {}), del: lsGet('cloudDel', []) });
+}
+function saveFlows() { lsSet('flows', S.flows); lsSet('flowSync', S.flowSync); }
+function addFlows(list) {
+  const have = new Set(S.flows.map(f => f.id)); let n = 0;
+  for (const f of list) if (f && !have.has(f.id)) { S.flows.push(f); have.add(f.id); n++; }
+  return n;
+}
+function stableUsd(coin, qty) {
+  if (/^(USDT|USDC|USD|USDE|FDUSD|DAI)$/i.test(coin)) return qty;
+  const p = S.spot[String(coin).toUpperCase()]; return p ? qty * p : 0;
+}
+
+// ── Bybit POST (подпись = timestamp + apiKey + recvWindow + тело JSON) ──
+async function bybitPost(path, body) {
+  const k = S.keys.bybit; if (!k) throw new Error('no key');
+  const ts = Date.now().toString(), rw = '5000', raw = JSON.stringify(body);
+  const enc = new TextEncoder();
+  const hk = await crypto.subtle.importKey('raw', enc.encode(k.secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', hk, enc.encode(ts + k.key + rw + raw));
+  const sign = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const j = await getJson('https://api.bybit.com' + path, {
+    method: 'POST', body: raw,
+    headers: { 'Content-Type': 'application/json', 'X-BAPI-API-KEY': k.key, 'X-BAPI-TIMESTAMP': ts, 'X-BAPI-RECV-WINDOW': rw, 'X-BAPI-SIGN': sign },
+  });
+  const code = j.ret_code !== undefined ? j.ret_code : j.retCode;
+  if (code !== 0) throw new Error('code ' + code + ' ' + (j.ret_msg || j.retMsg || ''));
+  return j.result;
+}
+
+// Переводы между счетами одного UID. На торговый счёт (UNIFIED) — «завёл», с него — «вывел».
+// Bybit отдаёт окно не больше 7 дней, поэтому идём неделями.
+async function syncTransfers() {
+  const now = Date.now(), from = S.flowSync.tr ? S.flowSync.tr - 2 * DAY : now - FLOW_DEPTH;
+  const out = [];
+  for (let st = from; st < now; st += 7 * DAY) {
+    const en = Math.min(now, st + 7 * DAY - 1);
+    let cursor = '', page = 0;
+    do {
+      const p = { startTime: String(st), endTime: String(en), limit: '50', status: 'SUCCESS' };
+      if (cursor) p.cursor = cursor;
+      const r = await bybitPrivate('/v5/asset/transfer/query-inter-transfer-list', p);
+      for (const x of r.list || []) {
+        const to = x.toAccountType, fr = x.fromAccountType, q = parseFloat(x.amount);
+        if (x.status && x.status !== 'SUCCESS') continue;
+        let kind = null;
+        if (to === 'UNIFIED' && fr !== 'UNIFIED') kind = 'in';
+        else if (fr === 'UNIFIED' && to !== 'UNIFIED') kind = 'out';
+        if (!kind || !(q > 0)) continue;
+        out.push({ id: 'T' + x.transferId, kind, ts: parseInt(x.timestamp, 10), coin: x.coin, qty: q, usd: stableUsd(x.coin, q), src: 'bybit', from: fr, to });
+      }
+      cursor = r.nextPageCursor || '';
+    } while (cursor && ++page < 10);
+  }
+  return out;
+}
+
+// Завершённые P2P-ордера (API доступно мерчантам; Bybit хранит 180 дней)
+async function syncP2P() {
+  const now = Date.now(), from = Math.max(now - FLOW_DEPTH + DAY, S.flowSync.p2p ? S.flowSync.p2p - 2 * DAY : 0);
+  const out = [];
+  for (let page = 1; page <= 50; page++) {
+    const r = await bybitPost('/v5/p2p/order/simplifyList', { page, size: 30, status: 50, beginTime: String(from), endTime: String(now) });
+    const items = r.items || [];
+    for (const x of items) {
+      if (x.status !== undefined && Number(x.status) !== 50) continue;
+      const price = parseFloat(x.price), fiat = parseFloat(x.amount);
+      const qty = parseFloat(x.notifyTokenQuantity) || (price > 0 ? fiat / price : 0);
+      out.push({ id: 'P' + x.id, kind: 'p2p', side: Number(x.side) === 1 ? 'sell' : 'buy', ts: parseInt(x.createDate, 10) || now,
+        token: x.tokenId || 'USDT', qty, fiat, cur: x.currencyId || '', price, fee: parseFloat(x.fee) || 0 });
+    }
+    if (items.length < 30 || page * 30 >= (r.count || 0)) break;
+  }
+  return out;
+}
+
+let flowBusy = false;
+async function syncFlows(manual) {
+  if (flowBusy) return; flowBusy = true;
+  const st = $('flow-status');
+  if (!S.keys.bybit) { if (manual && st) st.textContent = tr('mf_sync_nokey'); flowBusy = false; return; }
+  if (manual && st) st.textContent = tr('mf_sync_run');
+  let n = 0; const errs = [];
+  try {
+    try { const l = await syncTransfers(); n += addFlows(l); S.flowSync.tr = Date.now(); }
+    catch (e) { errs.push(tr('mf_err_tr', { e: e.message })); }
+    try { const l = await syncP2P(); n += addFlows(l); S.flowSync.p2p = Date.now(); }
+    catch (e) { errs.push(tr('mf_err_p2p', { e: e.message })); }
+    S.flowSync.err = errs.join(' · ');
+    saveFlows();
+    if (st && (manual || errs.length)) st.textContent = (manual ? tr('mf_sync_done', { n }) + ' ' : '') + S.flowSync.err;
+    renderFlows();
+    cloudSoon();
+  } finally { flowBusy = false; }
+}
+
+// ── ручная запись пополнения / вывода ──
+let flowModalKind = 'in';
+function openFlowManual(kind) {
+  flowModalKind = kind === 'out' ? 'out' : 'in';
+  $('fm-title').textContent = tr(flowModalKind === 'out' ? 'fm_title_out' : 'fm_title_in');
+  $('fm-amt').value = ''; $('fm-note').value = ''; $('fm-note').placeholder = tr('fm_note_ph'); $('fm-status').textContent = '';
+  const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); $('fm-date').value = d.toISOString().slice(0, 10);
+  openModal('flow-modal');
+  setTimeout(() => $('fm-amt').focus(), 50);
+}
+function saveFlowManual() {
+  const amt = parseFloat(String($('fm-amt').value).replace(',', '.'));
+  if (!(amt > 0)) { $('fm-status').textContent = tr('fm_err'); return; }
+  const day = $('fm-date').value, ts = day ? new Date(day + 'T12:00:00').getTime() : Date.now();
+  S.flows.push({ id: 'F' + Date.now(), kind: flowModalKind, ts, coin: 'USD', qty: amt, usd: amt, src: 'manual', note: $('fm-note').value.trim().slice(0, 80) });
+  saveFlows(); closeModal('flow-modal'); renderFlows(); cloudSoon();
+}
+function delFlow(id) {
+  if (!confirm(tr('del_confirm'))) return;
+  S.flows = S.flows.filter(f => f.id !== id); cloudMarkDeleted('F', id);
+  saveFlows(); renderFlows(); cloudSoon();
+}
+
+// ── агрегация по месяцам ──
+function monthKey(ts) { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+const MON_RU = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+const MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function monthLabel(k) { const [y, m] = k.split('-').map(Number); return (S.lang === 'ru' ? MON_RU : MON_EN)[m - 1] + ' ' + String(y).slice(2); }
+function nextMonth(k) { const [y, m] = k.split('-').map(Number); return m === 12 ? (y + 1) + '-01' : y + '-' + String(m + 1).padStart(2, '0'); }
+function optionCash(e) { return e.side === 'buy' ? -(e.px * e.qty + e.fee) : (e.px * e.qty - e.fee); }
+
+function monthlyFlows() {
+  const M = {};
+  const get = k => M[k] || (M[k] = { inn: 0, out: 0, opt: 0, p2pBuy: 0, p2pSell: 0, p2pN: 0 });
+  for (const f of S.flows) {
+    const m = get(monthKey(f.ts));
+    if (f.kind === 'in') m.inn += f.usd || 0;
+    else if (f.kind === 'out') m.out += f.usd || 0;
+    else if (f.kind === 'p2p') { if (f.side === 'buy') m.p2pBuy += f.qty; else m.p2pSell += f.qty; m.p2pN++; }
+  }
+  for (const e of S.ledger) get(monthKey(e.ts)).opt += optionCash(e);
+  const keys = Object.keys(M).sort();
+  if (!keys.length) return { rows: [], avg: null, full: 0 };
+  const cur = monthKey(Date.now()), rows = [];
+  for (let k = keys[0]; k <= (cur > keys[keys.length - 1] ? cur : keys[keys.length - 1]); k = nextMonth(k)) rows.push(Object.assign({ k }, M[k] || { inn: 0, out: 0, opt: 0, p2pBuy: 0, p2pSell: 0, p2pN: 0 }));
+  // Первый месяц неполный, если записи начались не с начала месяца (например, биржа отдала историю с середины)
+  let minTs = Infinity;
+  for (const f of S.flows) if (f.ts < minTs) minTs = f.ts;
+  for (const e of S.ledger) if (e.ts < minTs) minTs = e.ts;
+  const firstPartial = new Date(minTs).getDate() > 5;
+  let full = rows.filter(r => r.k < cur);
+  if (firstPartial && full.length > 1 && full[0].k === keys[0]) full = full.slice(1);
+  const base = full.length ? full : rows.filter(r => r.k === cur);
+  const avg = {};
+  for (const f of ['inn', 'out', 'opt', 'p2pBuy', 'p2pSell', 'p2pN']) avg[f] = base.reduce((s, r) => s + r[f], 0) / (base.length || 1);
+  return { rows, avg, full: full.length };
+}
+
+function renderFlows() {
+  const box = $('mflow'); if (!box) return;
+  const { rows, avg, full } = monthlyFlows();
+  const money = v => v ? fmtUsd(v, Math.abs(v) >= 100 ? 0 : 2) : '—';
+  const signed = v => v ? '<span class="' + cls(v) + '">' + fmtSigned(v, Math.abs(v) >= 100 ? 0 : 2) + '</span>' : '—';
+  if (!rows.length) { box.innerHTML = '<p class="empty">' + tr('mf_empty') + '</p>'; $('mflow-p2p-wrap').style.display = 'none'; renderFlowList(); return; }
+  const cur = monthKey(Date.now()), curRow = rows.find(r => r.k === cur);
+  const dayN = new Date().getDate();
+  let html = curRow && curRow.inn ? '<p class="mf-day">' + tr('mf_day', { m: fmtUsd(curRow.inn, 0), d: fmtUsd(curRow.inn / dayN, 2) }) + '</p>' : '';
+  html += '<div class="mtable"><div class="mh"><span>' + tr('mf_month') + '</span><span>' + tr('mf_in') + '</span><span>' + tr('mf_out') + '</span><span>' + tr('mf_opt') + '</span></div>';
+  for (const r of rows.slice().reverse()) html += '<div class="mr' + (r.k === cur ? ' cur' : '') + '"><span>' + monthLabel(r.k) + '</span><span>' + money(r.inn) + '</span><span>' + money(r.out) + '</span><span>' + signed(r.opt) + '</span></div>';
+  html += '<div class="mr avg"><span>' + tr('mf_avg') + '</span><span>' + money(avg.inn) + '</span><span>' + money(avg.out) + '</span><span>' + signed(avg.opt) + '</span></div></div>';
+  html += '<p class="note">' + (full ? tr('mf_avg_note', { n: full }) : tr('mf_avg_note_cur')) + '</p>';
+  box.innerHTML = html;
+
+  // P2P — отдельная таблица, только если есть ордера
+  const p2pRows = rows.filter(r => r.p2pN);
+  $('mflow-p2p-wrap').style.display = p2pRows.length ? '' : 'none';
+  if (p2pRows.length) {
+    const q = v => v ? fmtNum(v, v >= 100 ? 0 : 2) : '—';
+    let h = '<div class="mtable"><div class="mh"><span>' + tr('mf_month') + '</span><span>' + tr('mf_p2p_buy') + '</span><span>' + tr('mf_p2p_sell') + '</span><span>' + tr('mf_p2p_n') + '</span></div>';
+    for (const r of rows.slice().reverse()) if (r.p2pN || r.k === cur) h += '<div class="mr' + (r.k === cur ? ' cur' : '') + '"><span>' + monthLabel(r.k) + '</span><span>' + q(r.p2pBuy) + '</span><span>' + q(r.p2pSell) + '</span><span>' + (r.p2pN || '—') + '</span></div>';
+    h += '<div class="mr avg"><span>' + tr('mf_avg') + '</span><span>' + q(avg.p2pBuy) + '</span><span>' + q(avg.p2pSell) + '</span><span>' + (avg.p2pN ? avg.p2pN.toFixed(1) : '—') + '</span></div></div>';
+    $('mflow-p2p').innerHTML = h;
+  }
+  renderFlowList();
+}
+
+function renderFlowList() {
+  const el = $('flow-list'); if (!el) return;
+  const list = S.flows.filter(f => f.kind !== 'p2p').sort((a, b) => b.ts - a.ts);
+  const shown = flowsShowAll ? list : list.slice(0, 8);
+  el.innerHTML = shown.map(f => {
+    const v = f.kind === 'out' ? -(f.usd || 0) : (f.usd || 0);
+    const what = tr(f.kind === 'out' ? 'mf_kind_out' : 'mf_kind_in');
+    const src = f.src === 'manual' ? tr('mf_src_manual') + (f.note ? ' · ' + esc(f.note) : '') : tr('mf_src_bybit') + (f.coin && !/^USD/.test(f.coin) ? ' · ' + fmtQty(f.qty) + ' ' + esc(f.coin) : '');
+    return '<div class="item"><div class="it"><span class="name">' + what + '</span><span class="' + cls(v) + '" style="font-weight:600;white-space:nowrap">' + fmtSigned(v, 2) + '</span></div>' +
+      '<div class="is"><span>' + fmtDate(f.ts) + ', ' + src + '</span>' + (f.src === 'manual' ? '<a href="#" class="x" aria-label="✕" onclick="delFlow(\'' + esc(f.id) + '\');return false">✕</a>' : '<span></span>') + '</div></div>';
+  }).join('') + (!flowsShowAll && list.length > 8 ? '<button class="btn small ghost" style="margin-top:8px" onclick="flowsShowAll=true;renderFlowList()">' + tr('mf_more', { n: list.length }) + '</button>' : '');
+}
+
+// ═══════════════════════════════════════════════════
+// ОБЛАКО: Firebase Auth (почта/пароль) + Firestore через REST
+// users/{uid}/rec/{id}: c — тип ('L' сделка, 'F' поток, 'M' служебное), j — JSON записи, u — время, del — удалено
+// ═══════════════════════════════════════════════════
+function cloudOn() { return !!(S.cloud.uid && S.cloud.rt); }
+function saveCloud() {
+  lsSet('cloud', { email: S.cloud.email, uid: S.cloud.uid, rt: S.cloud.rt, last: S.cloud.last });
+  lsSet('cloudSent', S.cloud.sent); lsSet('cloudDel', S.cloud.del);
+}
+function hashStr(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + s.length.toString(36); }
+function docId(c, id) { return c + '_' + String(id).replace(/[\/\s]/g, '_').slice(0, 300); }
+function cloudMarkDeleted(c, id) { if (cloudOn()) { S.cloud.del.push(docId(c, id)); saveCloud(); } }
+
+function authErr(j) {
+  const code = (j && j.error && j.error.message || 'ERROR').split(' ')[0].split(':')[0];
+  const key = 'cl_e_' + code; const txt = tr(key);
+  return new Error(txt === key ? code : txt);
+}
+async function authPost(url, body, form) {
+  const r = await fetch(url, form
+    ? { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body).toString() }
+    : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw authErr(j);
+  return j;
+}
+async function cloudToken() {
+  if (S.cloud.idToken && Date.now() < S.cloud.exp - 60000) return S.cloud.idToken;
+  const rt = await aesDecrypt(S.cloud.rt); if (!rt) throw new Error('no session');
+  const j = await authPost('https://securetoken.googleapis.com/v1/token?key=' + FB.apiKey, { grant_type: 'refresh_token', refresh_token: rt }, true);
+  S.cloud.idToken = j.id_token; S.cloud.exp = Date.now() + (parseInt(j.expires_in, 10) || 3600) * 1000;
+  if (j.refresh_token && j.refresh_token !== rt) { S.cloud.rt = await aesEncrypt(j.refresh_token); saveCloud(); }
+  return S.cloud.idToken;
+}
+async function fsFetch(path, opts) {
+  const tok = await cloudToken();
+  const r = await fetch(FS_BASE + path, Object.assign({}, opts, { headers: Object.assign({ Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, (opts || {}).headers || {}) }));
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && (j.error.status || j.error.message)) || ('HTTP ' + r.status));
+  return j;
+}
+
+async function cloudLogin(signup) {
+  const email = $('cl-email').value.trim(), pass = $('cl-pass').value;
+  const st = $('cl-status'); st.textContent = tr('cl_busy'); st.className = 'status';
+  try {
+    const j = await authPost('https://identitytoolkit.googleapis.com/v1/accounts:' + (signup ? 'signUp' : 'signInWithPassword') + '?key=' + FB.apiKey,
+      { email, password: pass, returnSecureToken: true });
+    const fresh = S.cloud.uid !== j.localId;
+    S.cloud.email = j.email || email; S.cloud.uid = j.localId; S.cloud.rt = await aesEncrypt(j.refreshToken);
+    S.cloud.idToken = j.idToken; S.cloud.exp = Date.now() + (parseInt(j.expiresIn, 10) || 3600) * 1000;
+    if (fresh) { S.cloud.sent = {}; S.cloud.del = []; S.cloud.last = 0; }
+    saveCloud(); $('cl-pass').value = '';
+    await cloudSync(true);
+  } catch (e) { st.textContent = tr('cl_err', { e: e.message }); st.className = 'status loss'; }
+  renderCloud();
+}
+function cloudLogout() {
+  S.cloud = { email: '', uid: '', rt: '', idToken: '', exp: 0, last: 0, err: '', sent: {}, del: [] };
+  saveCloud(); renderCloud();
+}
+
+// Что лежит локально: ключ документа → { c, j }
+function localDocs() {
+  const out = {};
+  const clean = o => { const r = {}; for (const k of Object.keys(o)) if (k[0] !== '_') r[k] = o[k]; return r; };   // _inc и прочее служебное не храним
+  for (const e of S.ledger) out[docId('L', e.id)] = { c: 'L', j: JSON.stringify(clean(e)) };
+  for (const f of S.flows) out[docId('F', f.id)] = { c: 'F', j: JSON.stringify(f) };
+  out['M_incl'] = { c: 'M', j: JSON.stringify(S.incl) };
+  out['M_snaps'] = { c: 'M', j: JSON.stringify(S.snaps) };
+  return out;
+}
+
+let cloudBusy = false, cloudTimer = null;
+function cloudSoon() { if (!cloudOn()) return; clearTimeout(cloudTimer); cloudTimer = setTimeout(() => cloudSync(false), 3000); }
+
+async function cloudSync(full) {
+  if (!cloudOn()) return;
+  if (cloudBusy) { cloudSoon(); return; }
+  cloudBusy = true;
+  const st = $('cl-status');
+  let up = 0, down = 0;
+  try {
+    // 1) забрать всё из облака и влить в локальные данные
+    const remote = {}; let pageToken = '';
+    do {
+      const j = await fsFetch('/users/' + S.cloud.uid + '/rec?pageSize=300' + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''));
+      for (const d of j.documents || []) {
+        const id = d.name.split('/').pop(), f = d.fields || {};
+        remote[id] = { c: f.c && f.c.stringValue, j: f.j && f.j.stringValue, del: !!(f.del && f.del.booleanValue) };
+      }
+      pageToken = j.nextPageToken || '';
+    } while (pageToken);
+    const ledgerIds = new Set(S.ledger.map(e => e.id)), flowIds = new Set(S.flows.map(f => f.id));
+    for (const [id, r] of Object.entries(remote)) {
+      if (r.del) {
+        if (r.c === 'L') { const n = S.ledger.length; S.ledger = S.ledger.filter(e => docId('L', e.id) !== id); if (S.ledger.length < n) down++; }
+        if (r.c === 'F') { const n = S.flows.length; S.flows = S.flows.filter(f => docId('F', f.id) !== id); if (S.flows.length < n) down++; }
+        S.cloud.sent[id] = 'del'; continue;
+      }
+      if (!r.j) continue;
+      let v; try { v = JSON.parse(r.j); } catch (e) { continue; }
+      if (r.c === 'L' && v && v.id && !ledgerIds.has(v.id)) { S.ledger.push(v); ledgerIds.add(v.id); down++; S.cloud.sent[id] = hashStr(r.j); }
+      else if (r.c === 'F' && v && v.id && !flowIds.has(v.id)) { S.flows.push(v); flowIds.add(v.id); down++; S.cloud.sent[id] = hashStr(r.j); }
+      else if (id === 'M_incl' && v) { for (const k in v) if (!(k in S.incl)) { S.incl[k] = v[k]; down++; } }
+      else if (id === 'M_snaps' && v) { for (const k in v) if (!(k in S.snaps)) S.snaps[k] = v[k]; }
+      else if (r.c && r.c !== 'M' && !S.cloud.sent[id]) S.cloud.sent[id] = hashStr(r.j);   // уже есть локально
+    }
+    if (down) { saveLedger(); saveFlows(); }
+
+    // 2) отправить новое и изменённое, затем удаления
+    const loc = localDocs(), writes = [], now = Date.now();
+    const docName = id => 'projects/' + FB.projectId + '/databases/(default)/documents/users/' + S.cloud.uid + '/rec/' + id;
+    for (const [id, d] of Object.entries(loc)) {
+      const h = hashStr(d.j);
+      if (!full && S.cloud.sent[id] === h) continue;
+      if (remote[id] && !remote[id].del && remote[id].j === d.j) { S.cloud.sent[id] = h; continue; }
+      writes.push({ id, h, w: { update: { name: docName(id), fields: { c: { stringValue: d.c }, j: { stringValue: d.j }, u: { integerValue: String(now) } } } } });
+    }
+    for (const id of new Set(S.cloud.del)) writes.push({ id, h: 'del', w: { update: { name: docName(id), fields: { c: { stringValue: id.split('_')[0] }, del: { booleanValue: true }, u: { integerValue: String(now) } } } } });
+    for (let i = 0; i < writes.length; i += 400) {
+      const chunk = writes.slice(i, i + 400);
+      await fsFetch(':commit', { method: 'POST', body: JSON.stringify({ writes: chunk.map(x => x.w) }) });
+      for (const x of chunk) S.cloud.sent[x.id] = x.h;
+      up += chunk.length;
+    }
+    S.cloud.del = [];
+    S.cloud.last = Date.now(); S.cloud.err = '';
+    saveCloud();
+    if (st) { st.textContent = tr('cl_synced', { up, down }); st.className = 'status'; }
+    if (down) renderAll();
+  } catch (e) {
+    S.cloud.err = e.message;
+    if (st) { st.textContent = tr('cl_err', { e: e.message }); st.className = 'status loss'; }
+  } finally { cloudBusy = false; renderCloud(); }
+}
+
+// Удаление аккаунта (требование Google Play): все документы users/{uid}/rec, затем сам аккаунт
+async function cloudDeleteAccount() {
+  if (!cloudOn() || !confirm(tr('cl_del_confirm'))) return;
+  const st = $('cl-status'); st.textContent = tr('cl_busy'); st.className = 'status';
+  try {
+    const names = []; let pageToken = '';
+    do {
+      const j = await fsFetch('/users/' + S.cloud.uid + '/rec?pageSize=300&mask.fieldPaths=u' + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''));
+      for (const d of j.documents || []) names.push(d.name);
+      pageToken = j.nextPageToken || '';
+    } while (pageToken);
+    for (let i = 0; i < names.length; i += 400)
+      await fsFetch(':commit', { method: 'POST', body: JSON.stringify({ writes: names.slice(i, i + 400).map(n => ({ delete: n })) }) });
+    await authPost('https://identitytoolkit.googleapis.com/v1/accounts:delete?key=' + FB.apiKey, { idToken: await cloudToken() });
+    cloudLogout();
+    $('cl-status').textContent = tr('cl_deleted');
+  } catch (e) { st.textContent = tr('cl_err', { e: e.message }); st.className = 'status loss'; }
+}
+
+function renderCloud() {
+  const info = $('cl-info'); if (!info) return;
+  const on = cloudOn();
+  info.innerHTML = on ? tr('cl_on', { e: esc(S.cloud.email), t: S.cloud.last ? fmtDateTime(S.cloud.last) : tr('cl_never') }) : tr('cl_off');
+  $('cl-form').style.display = on ? 'none' : '';
+  $('cl-actions').style.display = on ? '' : 'none';
+  $('cl-del').style.display = on ? '' : 'none';
+}
+
+// ── автозапуск: поток раз в 30 минут, сделки раз в 6 часов, облако при входе ──
+let flowAutoAt = 0;
+function autoFlows() {
+  const now = Date.now();
+  if (now - flowAutoAt < 60000) return; flowAutoAt = now;
+  if (S.keys.bybit && now - Math.max(S.flowSync.tr || 0, S.flowSync.p2p || 0) > 30 * 60000) syncFlows(false);
+  if ((S.keys.bybit || S.keys.deribit) && now - Math.max(S.lastSync.bybit || 0, S.lastSync.deribit || 0) > 6 * 3600000) syncExchanges().then(cloudSoon);
+  if (cloudOn() && now - (S.cloud.last || 0) > 10 * 60000) cloudSync(false);
 }
 </script>
 <script>
@@ -1881,6 +2395,7 @@ function renderAll() {
   try { renderMoney(); } catch (e) { console.error('money', e); }
   try { renderStats(); } catch (e) { console.error('stats', e); }
   try { renderSettings(); } catch (e) { console.error('settings', e); }
+  try { renderFlows(); renderCloud(); } catch (e) { console.error('flows', e); }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1895,7 +2410,7 @@ function goTab(t) {
 }
 function setAsset(a) { S.asset = a; lsSet('asset', a); renderAll(); refreshAll(false); }
 function toggleIncl(id, val) { S.incl[id] = !!val; saveLedger(); renderAll(); }
-function delEntry(id) { if (!confirm(tr('del_confirm'))) return; S.ledger = S.ledger.filter(e => e.id !== id); delete S.incl[id]; saveLedger(); renderAll(); }
+function delEntry(id) { if (!confirm(tr('del_confirm'))) return; S.ledger = S.ledger.filter(e => e.id !== id); delete S.incl[id]; cloudMarkDeleted('L', id); saveLedger(); renderAll(); }
 function openModal(id) { $(id).classList.add('open'); }
 function closeModal(id) { $(id).classList.remove('open'); }
 
@@ -1976,7 +2491,7 @@ function saveManual() {
 
 // ── данные ──
 function exportData() {
-  const data = { app: 'tail-risk', ver: APP_VER, ts: Date.now(), cfg: S.cfg, ledger: S.ledger, incl: S.incl, snaps: S.snaps };
+  const data = { app: 'tail-risk', ver: APP_VER, ts: Date.now(), cfg: S.cfg, ledger: S.ledger, incl: S.incl, snaps: S.snaps, flows: S.flows };
   const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'tail-risk-' + new Date().toISOString().slice(0, 10) + '.json'; a.click();
 }
@@ -1988,6 +2503,7 @@ function importData(ev) {
       const d = JSON.parse(rd.result);
       if (d.app !== 'tail-risk' || !Array.isArray(d.ledger)) throw new Error('format');
       addEntries(d.ledger); Object.assign(S.incl, d.incl || {}); Object.assign(S.snaps, d.snaps || {});
+      if (Array.isArray(d.flows)) { addFlows(d.flows); saveFlows(); }
       if (d.cfg) S.cfg = Object.assign({}, DEFAULT_CFG, d.cfg);
       lsSet('cfg', S.cfg); saveLedger(); renderAll(); showToast(tr('imported'));
     } catch (e) { showToast(tr('import_err')); }
@@ -1996,6 +2512,7 @@ function importData(ev) {
 }
 function clearData() {
   if (!confirm(tr('clear_confirm'))) return;
+  for (const e of S.ledger) cloudMarkDeleted('L', e.id);
   S.ledger = []; S.incl = {}; S.snaps = {}; S.lastSync = { bybit: 0, deribit: 0 };
   saveLedger(); lsSet('lastSync', S.lastSync); renderAll();
 }
@@ -2085,15 +2602,16 @@ async function refreshAll(manual) {
 }
 
 async function init() {
-  loadState();
+  loadState(); loadFlows();
   for (const a of ASSETS) { const p = lsGet('spot-' + a, null); if (p) S.spot[a] = p; const d = lsGet('dvol-' + a, null); if (d) S.dvol[a] = d.data; const k = lsGet('kl-' + a, null); if (k) S.kl[a] = k.data; }
   applyTheme(); applyI18n();
   goTab(lsGet('tab', 'signal'));
   await loadKeys();
   renderAll();
   await refreshAll(false);
-  setInterval(() => { if (!document.hidden) refreshAll(false); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAll(false); });
+  autoFlows();
+  setInterval(() => { if (!document.hidden) { refreshAll(false); autoFlows(); } }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshAll(false); autoFlows(); } });
   window.addEventListener('resize', () => { renderSignal(); renderStats(); });
 }
 document.addEventListener('DOMContentLoaded', init);
