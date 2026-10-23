@@ -1159,7 +1159,7 @@ Object.assign(I18N.ru, {
   mf_opt_note: '«Сделки» — результат закрытых и истёкших позиций в месяц закрытия, с комиссиями: плюс — заработал, минус — слил. Открытые позиции — в строке выше таблицы.',
   sum_title: 'Весь оборот', sum_in: 'Зашло', sum_out: 'Вышло', sum_net_in: 'Чистый завод (зашло − вышло)',
   sum_win: 'Заработал на сделках', sum_loss: 'Слил на сделках (с комиссиями)', sum_closed: 'Итог закрытых сделок',
-  sum_open: 'Открытые позиции сейчас', sum_open_v: '{u}<small>стоят {v}</small>', sum_strat: 'Стратегия хвостов (отмеченные сделки)',
+  sum_open: 'Открытые позиции сейчас', sum_open_v: '{u}<small>стоят {v} по маркировке</small>', sum_strat: 'Стратегия хвостов (отмеченные сделки)',
   sum_total: 'Итог всех сделок с открытыми', sum_approx: 'Часть истёкших опционов оценена без цены поставки — итог приблизительный.',
   sum_noquote: 'Нет котировок для части открытых позиций — открой вкладку нужной монеты (ETH/BTC), чтобы они подтянулись.',
   mf_wd: ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'],
@@ -1203,7 +1203,7 @@ Object.assign(I18N.en, {
   mf_opt_note: '“Trades” is the result of closed and expired positions in the month they closed, with fees: plus means earned, minus means lost. Open positions are in the summary above.',
   sum_title: 'Full turnover', sum_in: 'In', sum_out: 'Out', sum_net_in: 'Net deposited (in − out)',
   sum_win: 'Earned on trades', sum_loss: 'Lost on trades (incl. fees)', sum_closed: 'Closed trades result',
-  sum_open: 'Open positions now', sum_open_v: '{u}<small>worth {v}</small>', sum_strat: 'Tail strategy (ticked trades)',
+  sum_open: 'Open positions now', sum_open_v: '{u}<small>worth {v} at mark</small>', sum_strat: 'Tail strategy (ticked trades)',
   sum_total: 'All trades incl. open', sum_approx: 'Some expired options were valued without a delivery price — the result is approximate.',
   sum_noquote: 'No quotes for some open positions — open the coin tab (ETH/BTC) so they load.',
   mf_wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -1246,6 +1246,7 @@ S.cloud = { email: '', uid: '', rt: '', idToken: '', exp: 0, last: 0, err: '', s
 let flowsShowAll = false;
 
 function loadFlows() {
+  S.orphans = lsGet('orphans', {});
   S.flows = lsGet('flows', []);
   S.flowSync = Object.assign({ tr: 0, p2p: 0, err: '' }, lsGet('flowSync', {}));
   const c = lsGet('cloud', {});
@@ -1311,9 +1312,12 @@ async function syncTransfers() {
 async function syncP2P() {
   const now = Date.now(), from = Math.max(now - FLOW_DEPTH + DAY, S.flowSync.p2p ? S.flowSync.p2p - 2 * DAY : 0);
   const out = []; out.seen = 0;
+  // Bybit: окно запроса P2P не больше 90 дней — идём кусками по 89 дней
+  for (let st = from; st < now; st += 89 * DAY) {
+  const en = Math.min(now, st + 89 * DAY);
   for (let page = 1; page <= 50; page++) {
-    const r = await bybitPost('/v5/p2p/order/simplifyList', { page, size: 30, status: 50, beginTime: String(from), endTime: String(now) });
-    const items = r.items || []; out.seen = r.count || out.seen + items.length;
+    const r = await bybitPost('/v5/p2p/order/simplifyList', { page, size: 30, status: 50, beginTime: String(st), endTime: String(en) });
+    const items = r.items || []; out.seen += items.length;
     for (const x of items) {
       if (x.status !== undefined && Number(x.status) !== 50) continue;
       const price = parseFloat(x.price), fiat = parseFloat(x.amount);
@@ -1323,7 +1327,49 @@ async function syncP2P() {
     }
     if (items.length < 30 || page * 30 >= (r.count || 0)) break;
   }
+  }
   return out;
+}
+
+// ── Открытые позиции прямо с биржи (истина для «Открытые позиции сейчас») ──
+S.pos = {};                                         // exch → { ts, list: [{asset, iso, strike, cp, qty, avg, mark}] }
+S.orphans = {};                                     // legKey → true: нога «открыта» по истории, но на бирже её нет
+async function fetchPositions() {
+  if (S.keys.bybit) {
+    try {
+      const list = [];
+      for (const coin of ASSETS) {
+        let cursor = '', page = 0;
+        do {
+          const p = { category: 'option', baseCoin: coin, limit: '200' }; if (cursor) p.cursor = cursor;
+          const r = await bybitPrivate('/v5/position/list', p);
+          for (const x of r.list || []) {
+            const ps = parseSym(x.symbol), q = parseFloat(x.size);
+            if (!ps || !(q > 0)) continue;
+            list.push({ asset: ps.asset, iso: ps.iso, strike: ps.strike, cp: ps.cp, qty: x.side === 'Sell' ? -q : q, avg: parseFloat(x.avgPrice) || 0, mark: parseFloat(x.markPrice) || 0 });
+          }
+          cursor = r.nextPageCursor || '';
+        } while (cursor && ++page < 5);
+      }
+      S.pos.bybit = { ts: Date.now(), list };
+    } catch (e) { console.warn('[pos bybit]', e.message); }
+  }
+  if (S.keys.deribit) {
+    try {
+      const auth = await deribitAuth(), list = [];
+      for (const cur of ASSETS) {
+        const r = await deribitPrivate(auth.access_token, 'private/get_positions?currency=' + cur + '&kind=option');
+        for (const x of r || []) {
+          const ps = parseSym(x.instrument_name), q = parseFloat(x.size);
+          if (!ps || !q) continue;
+          const idx = parseFloat(x.index_price) || S.spot[cur] || 0;
+          list.push({ asset: ps.asset, iso: ps.iso, strike: ps.strike, cp: ps.cp, qty: q, avg: (parseFloat(x.average_price) || 0) * idx, mark: (parseFloat(x.mark_price) || 0) * idx });
+        }
+      }
+      S.pos.deribit = { ts: Date.now(), list };
+    } catch (e) { console.warn('[pos deribit]', e.message); }
+  }
+  lsSet('orphans', S.orphans);
 }
 
 let flowBusy = false;
@@ -1338,6 +1384,7 @@ async function syncFlows(manual) {
     catch (e) { parts.push(tr('mf_err_tr', { e: e.message })); }
     try { const l = await syncP2P(); const k = addFlows(l); S.flowSync.p2p = Date.now(); parts.push(tr('mf_st_p2p', { seen: l.seen, m: l.length, k })); }
     catch (e) { parts.push(tr('mf_err_p2p', { e: e.message })); }
+    await fetchPositions();
     S.flowSync.msg = fmtDateTime(Date.now()) + ' — ' + parts.join(' · ');
     saveFlows();
     if (st) st.textContent = S.flowSync.msg;
@@ -1384,7 +1431,7 @@ function klMid(asset, ts) {
   let best = null; for (const x of kl) { if (x.ts <= ts) best = x; else break; }
   return best ? (best.h + best.l) / 2 : 0;
 }
-function tradePnl(filterFn) {
+function tradePnl(filterFn, addExchangeOnly) {
   const legs = {}, ev = []; let approx = false;
   const list = S.ledger.filter(filterFn || (() => true)).slice().sort((a, b) => a.ts - b.ts);
   for (const e of list) {
@@ -1404,10 +1451,20 @@ function tradePnl(filterFn) {
       L.avg = (L.avg * Math.abs(L.qty) + e.px * Math.abs(dq)) / (Math.abs(nq) || 1); L.qty = nq;
     }
   }
-  const now = Date.now(), open = [];
+  const now = Date.now(), open = [], seen = new Set();
+  const posOf = (exch, L) => { const P = S.pos[exch]; return P ? P.list.find(x => x.asset === L.asset && x.iso === L.exp && x.strike === L.strike && x.cp === L.cp) : undefined; };
   for (const L of Object.values(legs)) {
     if (Math.abs(L.qty) < 1e-9) continue;
     const em = expMs(L.exp);
+    // Позиции с биржи загружены — сверяемся с ними
+    if (S.pos[L.exch] && !(em + 3600000 < now)) {
+      const P = posOf(L.exch, L);
+      if (!P) { S.orphans[L.k] = true; continue; }   // история неполная: на бирже такой позиции нет
+      delete S.orphans[L.k]; seen.add(P);
+      L.qty = P.qty; L.avg = P.avg; L.px = P.mark; L.byExch = true;
+      open.push(L); continue;
+    }
+    if (S.orphans[L.k]) continue;                 // до экспирации биржа этой позиции не показывала — не придумываем расчёт
     if (em + 3600000 < now) {                     // истёк, а записи о расчёте нет (шорты и OTM биржа не пишет)
       const dp = (S.delivery[L.asset] || {})[L.exp], price = dp || klMid(L.asset, em);
       if (!dp) approx = true;
@@ -1419,10 +1476,15 @@ function tradePnl(filterFn) {
       open.push(L);
     }
   }
+  // Позиции, которые есть на бирже, но открыты раньше загруженной истории
+  if (addExchangeOnly) for (const exch of ['bybit', 'deribit']) for (const P of (S.pos[exch] && S.pos[exch].list) || []) {
+    if (seen.has(P)) continue;
+    open.push({ exch, asset: P.asset, exp: P.iso, strike: P.strike, cp: P.cp, qty: P.qty, avg: P.avg, px: P.mark, byExch: true });
+  }
   return { ev, open, approx };
 }
-function pnlSummary(filterFn) {
-  const r = tradePnl(filterFn);
+function pnlSummary(filterFn, addExchangeOnly) {
+  const r = tradePnl(filterFn, addExchangeOnly);
   let win = 0, loss = 0;
   for (const x of r.ev) { if (x.v > 0) win += x.v; else loss += x.v; }
   let openVal = 0, openPnl = 0, noQuote = 0;
@@ -1486,7 +1548,7 @@ function renderFlows() {
   const box = $('mflow'); if (!box) return;
   if ($('flow-src')) { $('flow-src').value = flowMode(); $('flow-src-note').textContent = tr(flowMode() === 'p2p' ? 'mf_src_note_p2p' : 'mf_src_note_tr'); }
   if (S.flowSync.msg && $('flow-status') && !flowBusy) $('flow-status').textContent = S.flowSync.msg;
-  flowPnl = pnlSummary();
+  flowPnl = pnlSummary(null, true);
   for (const a of ASSETS) try { includedEntries(a); } catch (e) { }
   const strat = pnlSummary(e => e._inc);
   renderTurnover(flowPnl, strat);
@@ -1740,6 +1802,7 @@ function autoFlows() {
   if (S.keys.bybit && now - Math.max(S.flowSync.tr || 0, S.flowSync.p2p || 0) > 30 * 60000) syncFlows(false);
   if ((S.keys.bybit || S.keys.deribit) && now - Math.max(S.lastSync.bybit || 0, S.lastSync.deribit || 0) > 6 * 3600000) syncExchanges().then(cloudSoon);
   if (cloudOn() && now - (S.cloud.last || 0) > 10 * 60000) cloudSync(false);
+  if ((S.keys.bybit || S.keys.deribit) && now - Math.max((S.pos.bybit || {}).ts || 0, (S.pos.deribit || {}).ts || 0) > 5 * 60000) fetchPositions().then(renderFlows);
   for (const a of ASSETS) if (a !== S.asset && !(S.delivery[a] && Object.keys(S.delivery[a]).length)) fetchDelivery(a).then(renderFlows);
 }
 </script>
@@ -1981,7 +2044,8 @@ function mapBybitExec(x) {
   return null;
 }
 async function syncBybit() {
-  const from = Math.max(S.cfg.start, (S.lastSync.bybit || 0) - 2 * DAY), now = Date.now();
+  // История — за год, независимо от «Начала стратегии» (в стратегию старые сделки всё равно не попадают)
+  const from = S.lastSync.bybitH ? (S.lastSync.bybit || 0) - 2 * DAY : Date.now() - 365 * DAY, now = Date.now();
   const all = [];
   for (const coin of ASSETS) {
     for (let st = from; st < now; st += 7 * DAY) {
@@ -1999,7 +2063,8 @@ async function syncBybit() {
   return all.filter(Boolean);
 }
 async function syncDeribit() {
-  const from = Math.max(S.cfg.start, (S.lastSync.deribit || 0) - 2 * DAY), now = Date.now();
+  // История — за год, независимо от «Начала стратегии» (в стратегию старые сделки всё равно не попадают)
+  const from = S.lastSync.deribitH ? (S.lastSync.deribit || 0) - 2 * DAY : Date.now() - 365 * DAY, now = Date.now();
   const auth = await deribitAuth(), all = [];
   for (const cur of ASSETS) {
     let start = from, guard = 0;
@@ -2043,7 +2108,7 @@ async function syncExchanges() {
     try {
       const list = ex === 'bybit' ? await syncBybit() : await syncDeribit();
       added += addEntries(list);
-      S.lastSync[ex] = Date.now();
+      S.lastSync[ex] = Date.now(); S.lastSync[ex + 'H'] = 1;
     } catch (e) { errs.push(tr('sync_err', { ex: ex === 'bybit' ? 'Bybit' : 'Deribit', e: e.message })); }
   }
   lsSet('lastSync', S.lastSync); saveLedger();
