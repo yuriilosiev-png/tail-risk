@@ -125,6 +125,12 @@ canvas { width: 100%; display: block; }
 .mtable .mh { color: var(--muted); font-size: 12px; padding-top: 0; }
 .mtable .mh > span:not(:first-child), .mtable .mr > span:not(:first-child) { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .mtable .mr.cur > span:first-child::after { content: ' •'; color: var(--ember); }
+.mtable .mr.tap { cursor: pointer; }
+.mtable .mchev { display: inline-block; width: 14px; font-style: normal; color: var(--muted); font-size: 11px; }
+.mtable .mdays { background: var(--s1); border-radius: 10px; margin: 2px 0 4px; padding: 0 8px; }
+.mtable .mr.d { font-size: 12.5px; padding: 5px 0; color: var(--muted); }
+.mtable .mr.d span:first-child { padding-left: 14px; }
+.mtable .mr.d:last-child { border-bottom: none; }
 .mtable .mr.avg { border-bottom: none; border-top: 1px solid var(--muted); font-weight: 600; }
 .mf-day { font-size: 14px; color: var(--muted); margin: 0 0 8px; }
 .mf-day b { color: var(--text); }
@@ -1137,6 +1143,9 @@ Object.assign(I18N.ru, {
   mf_month: 'Месяц', mf_in: 'Завёл', mf_out: 'Вывел', mf_opt: 'Опционы', mf_avg: 'Среднее',
   mf_avg_note: 'Среднее за месяц — по {n} полным месяцам. Текущий и неполный первый месяц не входят.',
   mf_avg_note_cur: 'Полных месяцев пока нет — среднее по текущему.',
+  mf_tap: 'Нажми на месяц, чтобы открыть его по дням.',
+  mf_opt_note: '«Опционы» — премии всех сделок месяца: продажи минус покупки, с комиссиями. Открытые позиции по текущей цене сюда не входят.',
+  mf_wd: ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'],
   mf_empty: 'Записей пока нет. Нажми «Обновить переводы» или добавь пополнение вручную.',
   mf_day: 'В этом месяце заведено <b>{m}</b>, в среднем <b>{d}</b> в день.',
   mf_p2p: 'P2P по месяцам', mf_p2p_buy: 'Куплено', mf_p2p_sell: 'Продано', mf_p2p_n: 'Ордеров',
@@ -1168,6 +1177,9 @@ Object.assign(I18N.en, {
   mf_month: 'Month', mf_in: 'In', mf_out: 'Out', mf_opt: 'Options', mf_avg: 'Average',
   mf_avg_note: 'Monthly average over {n} full months. The current month and a partial first month are excluded.',
   mf_avg_note_cur: 'No full months yet — average of the current one.',
+  mf_tap: 'Tap a month to see it by day.',
+  mf_opt_note: '“Options” is the premium of all trades in the month: sales minus purchases, with fees. Open positions at current prices are not included.',
+  mf_wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   mf_empty: 'No records yet. Tap “Refresh transfers” or add a deposit manually.',
   mf_day: 'This month in: <b>{m}</b>, about <b>{d}</b> a day.',
   mf_p2p: 'P2P by month', mf_p2p_buy: 'Bought', mf_p2p_sell: 'Sold', mf_p2p_n: 'Orders',
@@ -1333,15 +1345,29 @@ function monthLabel(k) { const [y, m] = k.split('-').map(Number); return (S.lang
 function nextMonth(k) { const [y, m] = k.split('-').map(Number); return m === 12 ? (y + 1) + '-01' : y + '-' + String(m + 1).padStart(2, '0'); }
 function optionCash(e) { return e.side === 'buy' ? -(e.px * e.qty + e.fee) : (e.px * e.qty - e.fee); }
 
+const EMPTY_AGG = () => ({ inn: 0, out: 0, opt: 0, p2pBuy: 0, p2pSell: 0, p2pN: 0 });
+function addAgg(m, f) {
+  if (f.kind === 'in') m.inn += f.usd || 0;
+  else if (f.kind === 'out') m.out += f.usd || 0;
+  else if (f.kind === 'p2p') { if (f.side === 'buy') m.p2pBuy += f.qty; else m.p2pSell += f.qty; m.p2pN++; }
+}
+function dayKey(ts) { const d = new Date(ts); return monthKey(ts) + '-' + String(d.getDate()).padStart(2, '0'); }
+function dayLabel(k) { const [y, m, d] = k.split('-').map(Number); return tr('mf_wd')[new Date(y, m - 1, d).getDay()] + ' ' + d; }
+// Дни одного месяца, где было движение
+function dailyFlows(mk) {
+  const D = {};
+  const get = k => D[k] || (D[k] = Object.assign({ k }, EMPTY_AGG()));
+  for (const f of S.flows) if (monthKey(f.ts) === mk) addAgg(get(dayKey(f.ts)), f);
+  for (const e of S.ledger) if (monthKey(e.ts) === mk) get(dayKey(e.ts)).opt += optionCash(e);
+  return Object.values(D).sort((a, b) => b.k.localeCompare(a.k));
+}
+const flowOpen = { m: new Set(), p: new Set() };
+function toggleMonth(t, k) { const s = flowOpen[t]; if (s.has(k)) s.delete(k); else s.add(k); renderFlows(); }
+
 function monthlyFlows() {
   const M = {};
-  const get = k => M[k] || (M[k] = { inn: 0, out: 0, opt: 0, p2pBuy: 0, p2pSell: 0, p2pN: 0 });
-  for (const f of S.flows) {
-    const m = get(monthKey(f.ts));
-    if (f.kind === 'in') m.inn += f.usd || 0;
-    else if (f.kind === 'out') m.out += f.usd || 0;
-    else if (f.kind === 'p2p') { if (f.side === 'buy') m.p2pBuy += f.qty; else m.p2pSell += f.qty; m.p2pN++; }
-  }
+  const get = k => M[k] || (M[k] = EMPTY_AGG());
+  for (const f of S.flows) addAgg(get(monthKey(f.ts)), f);
   for (const e of S.ledger) get(monthKey(e.ts)).opt += optionCash(e);
   const keys = Object.keys(M).sort();
   if (!keys.length) return { rows: [], avg: null, full: 0 };
@@ -1371,9 +1397,18 @@ function renderFlows() {
   const dayN = new Date().getDate();
   let html = curRow && curRow.inn ? '<p class="mf-day">' + tr('mf_day', { m: fmtUsd(curRow.inn, 0), d: fmtUsd(curRow.inn / dayN, 2) }) + '</p>' : '';
   html += '<div class="mtable"><div class="mh"><span>' + tr('mf_month') + '</span><span>' + tr('mf_in') + '</span><span>' + tr('mf_out') + '</span><span>' + tr('mf_opt') + '</span></div>';
-  for (const r of rows.slice().reverse()) html += '<div class="mr' + (r.k === cur ? ' cur' : '') + '"><span>' + monthLabel(r.k) + '</span><span>' + money(r.inn) + '</span><span>' + money(r.out) + '</span><span>' + signed(r.opt) + '</span></div>';
+  const chev = (t, k) => '<i class="mchev">' + (flowOpen[t].has(k) ? '▾' : '▸') + '</i>';
+  for (const r of rows.slice().reverse()) {
+    const has = r.inn || r.out || r.opt;
+    html += '<div class="mr' + (r.k === cur ? ' cur' : '') + (has ? ' tap' : '') + '"' + (has ? ' onclick="toggleMonth(\'m\',\'' + r.k + '\')"' : '') + '><span>' + (has ? chev('m', r.k) : '<i class="mchev"></i>') + monthLabel(r.k) + '</span><span>' + money(r.inn) + '</span><span>' + money(r.out) + '</span><span>' + signed(r.opt) + '</span></div>';
+    if (has && flowOpen.m.has(r.k)) {
+      html += '<div class="mdays">';
+      for (const d of dailyFlows(r.k)) if (d.inn || d.out || d.opt) html += '<div class="mr d"><span>' + dayLabel(d.k) + '</span><span>' + money(d.inn) + '</span><span>' + money(d.out) + '</span><span>' + signed(d.opt) + '</span></div>';
+      html += '</div>';
+    }
+  }
   html += '<div class="mr avg"><span>' + tr('mf_avg') + '</span><span>' + money(avg.inn) + '</span><span>' + money(avg.out) + '</span><span>' + signed(avg.opt) + '</span></div></div>';
-  html += '<p class="note">' + (full ? tr('mf_avg_note', { n: full }) : tr('mf_avg_note_cur')) + '</p>';
+  html += '<p class="note">' + tr('mf_tap') + ' ' + (full ? tr('mf_avg_note', { n: full }) : tr('mf_avg_note_cur')) + ' ' + tr('mf_opt_note') + '</p>';
   box.innerHTML = html;
 
   // P2P — отдельная таблица, только если есть ордера
@@ -1382,7 +1417,15 @@ function renderFlows() {
   if (p2pRows.length) {
     const q = v => v ? fmtNum(v, v >= 100 ? 0 : 2) : '—';
     let h = '<div class="mtable"><div class="mh"><span>' + tr('mf_month') + '</span><span>' + tr('mf_p2p_buy') + '</span><span>' + tr('mf_p2p_sell') + '</span><span>' + tr('mf_p2p_n') + '</span></div>';
-    for (const r of rows.slice().reverse()) if (r.p2pN || r.k === cur) h += '<div class="mr' + (r.k === cur ? ' cur' : '') + '"><span>' + monthLabel(r.k) + '</span><span>' + q(r.p2pBuy) + '</span><span>' + q(r.p2pSell) + '</span><span>' + (r.p2pN || '—') + '</span></div>';
+    for (const r of rows.slice().reverse()) {
+      if (!r.p2pN && r.k !== cur) continue;
+      h += '<div class="mr' + (r.k === cur ? ' cur' : '') + (r.p2pN ? ' tap' : '') + '"' + (r.p2pN ? ' onclick="toggleMonth(\'p\',\'' + r.k + '\')"' : '') + '><span>' + (r.p2pN ? chev('p', r.k) : '<i class="mchev"></i>') + monthLabel(r.k) + '</span><span>' + q(r.p2pBuy) + '</span><span>' + q(r.p2pSell) + '</span><span>' + (r.p2pN || '—') + '</span></div>';
+      if (r.p2pN && flowOpen.p.has(r.k)) {
+        h += '<div class="mdays">';
+        for (const d of dailyFlows(r.k)) if (d.p2pN) h += '<div class="mr d"><span>' + dayLabel(d.k) + '</span><span>' + q(d.p2pBuy) + '</span><span>' + q(d.p2pSell) + '</span><span>' + d.p2pN + '</span></div>';
+        h += '</div>';
+      }
+    }
     h += '<div class="mr avg"><span>' + tr('mf_avg') + '</span><span>' + q(avg.p2pBuy) + '</span><span>' + q(avg.p2pSell) + '</span><span>' + (avg.p2pN ? avg.p2pN.toFixed(1) : '—') + '</span></div></div>';
     $('mflow-p2p').innerHTML = h;
   }
