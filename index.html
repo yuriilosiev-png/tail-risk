@@ -125,6 +125,13 @@ canvas { width: 100%; display: block; }
 .mtable .mh { color: var(--muted); font-size: 12px; padding-top: 0; }
 .mtable .mh > span:not(:first-child), .mtable .mr > span:not(:first-child) { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .mtable .mr.cur > span:first-child::after { content: ' •'; color: var(--ember); }
+.sumbox { background: var(--s1); border: 1px solid var(--line); border-radius: 14px; padding: 8px 14px; }
+.sumbox .row { padding: 6px 0; }
+.sumbox .row .v { white-space: nowrap; }
+.sumbox .row .v small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+.sumbox .row.strong .k { color: var(--text); font-weight: 600; }
+.sumbox .row.strong .v { font-weight: 700; }
+.sumbox .sep { border-top: 1px solid var(--line); margin: 4px 0; }
 .mtable .mr.tap { cursor: pointer; }
 .mtable .mchev { display: inline-block; width: 14px; font-style: normal; color: var(--muted); font-size: 11px; }
 .mtable .mdays { background: var(--s1); border-radius: 10px; margin: 2px 0 4px; padding: 0 8px; }
@@ -375,12 +382,17 @@ body.light .bigline { color: var(--text); }
 
       <section class="block" style="margin-top:16px">
         <h2><span data-i18n="mf_title">Поток по месяцам</span><small data-i18n="mf_sub">USDT и др. монеты · опционы ETH и BTC</small></h2>
+        <h2 style="font-size:16px" data-i18n="sum_title">Весь оборот</h2>
+        <div id="mflow-sum"></div>
+        <label class="f" data-i18n="mf_src_label" style="margin-top:14px">Что считать «Завёл / Вывел»</label>
+        <select id="flow-src" onchange="setFlowMode(this.value)"><option value="p2p" data-i18n="mf_src_p2p">P2P: покупка — завёл, продажа — вывел</option><option value="tr" data-i18n="mf_src_tr">Переводы на торговый счёт и с него</option></select>
+        <p class="note" id="flow-src-note" style="margin:6px 0 12px"></p>
         <div id="mflow"></div>
         <div class="btns">
           <button class="btn ghost" onclick="openFlowManual('in')" data-i18n="mf_add_in">+ Завёл</button>
           <button class="btn ghost" onclick="openFlowManual('out')" data-i18n="mf_add_out">− Вывел</button>
         </div>
-        <button class="btn small ghost" style="margin-top:8px" onclick="syncFlows(true)" data-i18n="mf_sync">Обновить переводы</button>
+        <button class="btn small ghost" style="margin-top:8px" onclick="syncFlows(true)" data-i18n="mf_sync">Обновить P2P и переводы</button>
         <div class="status muted" id="flow-status"></div>
         <div id="mflow-p2p-wrap" style="display:none;margin-top:18px">
           <h2 style="font-size:16px" data-i18n="mf_p2p">P2P по месяцам</h2>
@@ -1140,17 +1152,27 @@ const FLOW_DEPTH = 180 * DAY;            // глубина первой загр
 
 Object.assign(I18N.ru, {
   mf_title: 'Поток по месяцам', mf_sub: 'USDT и др. монеты · опционы ETH и BTC',
-  mf_month: 'Месяц', mf_in: 'Завёл', mf_out: 'Вывел', mf_opt: 'Опционы', mf_avg: 'Среднее',
+  mf_month: 'Месяц', mf_in: 'Зашло', mf_out: 'Вышло', mf_opt: 'Сделки', mf_avg: 'Среднее',
   mf_avg_note: 'Среднее за месяц — по {n} полным месяцам. Текущий и неполный первый месяц не входят.',
   mf_avg_note_cur: 'Полных месяцев пока нет — среднее по текущему.',
   mf_tap: 'Нажми на месяц, чтобы открыть его по дням.',
-  mf_opt_note: '«Опционы» — премии всех сделок месяца: продажи минус покупки, с комиссиями. Открытые позиции по текущей цене сюда не входят.',
+  mf_opt_note: '«Сделки» — результат закрытых и истёкших позиций в месяц закрытия, с комиссиями: плюс — заработал, минус — слил. Открытые позиции — в строке выше таблицы.',
+  sum_title: 'Весь оборот', sum_in: 'Зашло', sum_out: 'Вышло', sum_net_in: 'Чистый завод (зашло − вышло)',
+  sum_win: 'Заработал на сделках', sum_loss: 'Слил на сделках (с комиссиями)', sum_closed: 'Итог закрытых сделок',
+  sum_open: 'Открытые позиции сейчас', sum_open_v: '{u}<small>стоят {v}</small>', sum_strat: 'Стратегия хвостов (отмеченные сделки)',
+  sum_total: 'Итог всех сделок с открытыми', sum_approx: 'Часть истёкших опционов оценена без цены поставки — итог приблизительный.',
+  sum_noquote: 'Нет котировок для части открытых позиций — открой вкладку нужной монеты (ETH/BTC), чтобы они подтянулись.',
   mf_wd: ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'],
   mf_empty: 'Записей пока нет. Нажми «Обновить переводы» или добавь пополнение вручную.',
   mf_day: 'В этом месяце заведено <b>{m}</b>, в среднем <b>{d}</b> в день.',
   mf_p2p: 'P2P по месяцам', mf_p2p_buy: 'Куплено', mf_p2p_sell: 'Продано', mf_p2p_n: 'Ордеров',
-  mf_p2p_note: 'Завершённые P2P-ордера Bybit, в монете ордера (обычно USDT). Это оборот мерчанта, в «Завёл» он не входит: туда попадают только переводы на торговый счёт.',
-  mf_sync: 'Обновить переводы', mf_add_in: '+ Завёл', mf_add_out: '− Вывел',
+  mf_p2p_note: 'Завершённые P2P-ордера Bybit, в монете ордера (обычно USDT), на какой бы счёт они ни пришли.',
+  mf_src_label: 'Что считать «Завёл / Вывел»',
+  mf_src_p2p: 'P2P: покупка — завёл, продажа — вывел', mf_src_tr: 'Переводы на торговый счёт и с него',
+  mf_src_note_p2p: 'Сейчас «Завёл» — купленные через P2P USDT, «Вывел» — проданные, на любой счёт. Переводы между своими счетами не считаются, чтобы не учесть одни деньги дважды.',
+  mf_src_note_tr: 'Сейчас «Завёл / Вывел» — переводы на торговый счёт (Unified) и с него. P2P показан отдельной таблицей.',
+  mf_p2p_rec: 'P2P · {q} {t}{fiat}',
+  mf_sync: 'Обновить P2P и переводы', mf_add_in: '+ Завёл', mf_add_out: '− Вывел',
   mf_sync_run: 'Загружаю переводы и P2P…', mf_sync_done: 'Новых записей: {n}.',
   mf_sync_nokey: 'Для автозагрузки нужен ключ Bybit (Настройки → Ключи бирж). Можно записывать вручную.',
   mf_err_tr: 'Переводы: ошибка «{e}»', mf_err_p2p: 'P2P: ошибка «{e}»',
@@ -1174,17 +1196,27 @@ Object.assign(I18N.ru, {
 });
 Object.assign(I18N.en, {
   mf_title: 'Cash flow by month', mf_sub: 'USDT & other coins · ETH and BTC options',
-  mf_month: 'Month', mf_in: 'In', mf_out: 'Out', mf_opt: 'Options', mf_avg: 'Average',
+  mf_month: 'Month', mf_in: 'In', mf_out: 'Out', mf_opt: 'Trades', mf_avg: 'Average',
   mf_avg_note: 'Monthly average over {n} full months. The current month and a partial first month are excluded.',
   mf_avg_note_cur: 'No full months yet — average of the current one.',
   mf_tap: 'Tap a month to see it by day.',
-  mf_opt_note: '“Options” is the premium of all trades in the month: sales minus purchases, with fees. Open positions at current prices are not included.',
+  mf_opt_note: '“Trades” is the result of closed and expired positions in the month they closed, with fees: plus means earned, minus means lost. Open positions are in the summary above.',
+  sum_title: 'Full turnover', sum_in: 'In', sum_out: 'Out', sum_net_in: 'Net deposited (in − out)',
+  sum_win: 'Earned on trades', sum_loss: 'Lost on trades (incl. fees)', sum_closed: 'Closed trades result',
+  sum_open: 'Open positions now', sum_open_v: '{u}<small>worth {v}</small>', sum_strat: 'Tail strategy (ticked trades)',
+  sum_total: 'All trades incl. open', sum_approx: 'Some expired options were valued without a delivery price — the result is approximate.',
+  sum_noquote: 'No quotes for some open positions — open the coin tab (ETH/BTC) so they load.',
   mf_wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   mf_empty: 'No records yet. Tap “Refresh transfers” or add a deposit manually.',
   mf_day: 'This month in: <b>{m}</b>, about <b>{d}</b> a day.',
   mf_p2p: 'P2P by month', mf_p2p_buy: 'Bought', mf_p2p_sell: 'Sold', mf_p2p_n: 'Orders',
-  mf_p2p_note: 'Completed Bybit P2P orders, in the order coin (usually USDT). This is merchant turnover and is not counted as “In”: only transfers to the trading account are.',
-  mf_sync: 'Refresh transfers', mf_add_in: '+ Deposit', mf_add_out: '− Withdraw',
+  mf_p2p_note: 'Completed Bybit P2P orders, in the order coin (usually USDT), whichever account they landed in.',
+  mf_src_label: 'What counts as “In / Out”',
+  mf_src_p2p: 'P2P: buy = in, sell = out', mf_src_tr: 'Transfers to/from the trading account',
+  mf_src_note_p2p: '“In” is USDT bought via P2P, “Out” is USDT sold, to any account. Transfers between your own accounts are not counted, so the same money is not counted twice.',
+  mf_src_note_tr: '“In / Out” are transfers to and from the trading account (Unified). P2P is shown in a separate table.',
+  mf_p2p_rec: 'P2P · {q} {t}{fiat}',
+  mf_sync: 'Refresh P2P and transfers', mf_add_in: '+ Deposit', mf_add_out: '− Withdraw',
   mf_sync_run: 'Loading transfers and P2P…', mf_sync_done: 'New records: {n}.',
   mf_sync_nokey: 'Auto-loading needs a Bybit key (Settings → Exchange keys). You can add records manually.',
   mf_err_tr: 'Transfers: error “{e}”', mf_err_p2p: 'P2P: error “{e}”',
@@ -1345,11 +1377,74 @@ function monthLabel(k) { const [y, m] = k.split('-').map(Number); return (S.lang
 function nextMonth(k) { const [y, m] = k.split('-').map(Number); return m === 12 ? (y + 1) + '-01' : y + '-' + String(m + 1).padStart(2, '0'); }
 function optionCash(e) { return e.side === 'buy' ? -(e.px * e.qty + e.fee) : (e.px * e.qty - e.fee); }
 
+// ── Результат сделок: средняя цена по каждой ноге, прибыль фиксируется при закрытии ──
+// Возвращает события {ts, v} (комиссии — отдельными минусами) и открытые ноги.
+function klMid(asset, ts) {
+  const kl = S.kl[asset]; if (!kl || !kl.length) return 0;
+  let best = null; for (const x of kl) { if (x.ts <= ts) best = x; else break; }
+  return best ? (best.h + best.l) / 2 : 0;
+}
+function tradePnl(filterFn) {
+  const legs = {}, ev = []; let approx = false;
+  const list = S.ledger.filter(filterFn || (() => true)).slice().sort((a, b) => a.ts - b.ts);
+  for (const e of list) {
+    const k = legKey(e);
+    const L = legs[k] || (legs[k] = { k, exch: e.exch, asset: e.asset, exp: e.exp, strike: e.strike, cp: e.cp, qty: 0, avg: 0 });
+    if (e.fee) ev.push({ ts: e.ts, v: -e.fee, fee: true });
+    const dq = e.side === 'buy' ? e.qty : -e.qty;
+    if (L.qty !== 0 && Math.sign(dq) !== Math.sign(L.qty)) {
+      const close = Math.min(Math.abs(dq), Math.abs(L.qty));
+      ev.push({ ts: e.ts, v: (e.px - L.avg) * close * Math.sign(L.qty) });   // лонг: продал − купил; шорт: продал − откупил
+      const rest = Math.abs(dq) - close;
+      L.qty += Math.sign(dq) * close;
+      if (Math.abs(L.qty) < 1e-9) L.qty = 0;
+      if (rest > 1e-9) { L.qty = Math.sign(dq) * rest; L.avg = e.px; }
+    } else {
+      const nq = L.qty + dq;
+      L.avg = (L.avg * Math.abs(L.qty) + e.px * Math.abs(dq)) / (Math.abs(nq) || 1); L.qty = nq;
+    }
+  }
+  const now = Date.now(), open = [];
+  for (const L of Object.values(legs)) {
+    if (Math.abs(L.qty) < 1e-9) continue;
+    const em = expMs(L.exp);
+    if (em + 3600000 < now) {                     // истёк, а записи о расчёте нет (шорты и OTM биржа не пишет)
+      const dp = (S.delivery[L.asset] || {})[L.exp], price = dp || klMid(L.asset, em);
+      if (!dp) approx = true;
+      ev.push({ ts: em, v: ((price ? intrinsic(L.cp, L.strike, price) : 0) - L.avg) * L.qty });
+    } else {
+      const ch = S.chain[L.exch] && S.chain[L.exch][L.asset];
+      L.q = ch ? ch.quotes.find(q => q.iso === L.exp && q.strike === L.strike && q.cp === L.cp) : null;
+      L.px = L.q ? (L.qty > 0 ? L.q.bid : (L.q.ask || L.q.mark)) : null;   // по чём можно закрыть сейчас
+      open.push(L);
+    }
+  }
+  return { ev, open, approx };
+}
+function pnlSummary(filterFn) {
+  const r = tradePnl(filterFn);
+  let win = 0, loss = 0;
+  for (const x of r.ev) { if (x.v > 0) win += x.v; else loss += x.v; }
+  let openVal = 0, openPnl = 0, noQuote = 0;
+  for (const L of r.open) { if (L.px === null || L.px === undefined) { noQuote++; continue; } openVal += L.px * L.qty; openPnl += (L.px - L.avg) * L.qty; }
+  return { ev: r.ev, win, loss, closed: win + loss, openVal, openPnl, noQuote, approx: r.approx, nOpen: r.open.length };
+}
+
 const EMPTY_AGG = () => ({ inn: 0, out: 0, opt: 0, p2pBuy: 0, p2pSell: 0, p2pN: 0 });
+// Режим учёта: 'p2p' — завод = P2P-покупки (на любой счёт), 'tr' — переводы на торговый счёт.
+// Ручные записи считаются в обоих режимах.
+function flowMode() { return S.cfg.flowSrc === 'tr' ? 'tr' : 'p2p'; }
+function setFlowMode(v) { S.cfg.flowSrc = v === 'tr' ? 'tr' : 'p2p'; lsSet('cfg', S.cfg); renderFlows(); }
+function countsInTotals(f) {
+  if (f.src === 'manual') return true;
+  return flowMode() === 'p2p' ? f.kind === 'p2p' : (f.kind === 'in' || f.kind === 'out');
+}
+function flowUsd(f) { return f.kind === 'p2p' ? stableUsd(f.token || 'USDT', f.qty) : (f.usd || 0); }
+function flowDir(f) { return f.kind === 'p2p' ? (f.side === 'buy' ? 'in' : 'out') : f.kind; }
 function addAgg(m, f) {
-  if (f.kind === 'in') m.inn += f.usd || 0;
-  else if (f.kind === 'out') m.out += f.usd || 0;
-  else if (f.kind === 'p2p') { if (f.side === 'buy') m.p2pBuy += f.qty; else m.p2pSell += f.qty; m.p2pN++; }
+  if (f.kind === 'p2p') { if (f.side === 'buy') m.p2pBuy += f.qty; else m.p2pSell += f.qty; m.p2pN++; }
+  if (!countsInTotals(f)) return;
+  if (flowDir(f) === 'in') m.inn += flowUsd(f); else if (flowDir(f) === 'out') m.out += flowUsd(f);
 }
 function dayKey(ts) { const d = new Date(ts); return monthKey(ts) + '-' + String(d.getDate()).padStart(2, '0'); }
 function dayLabel(k) { const [y, m, d] = k.split('-').map(Number); return tr('mf_wd')[new Date(y, m - 1, d).getDay()] + ' ' + d; }
@@ -1358,17 +1453,18 @@ function dailyFlows(mk) {
   const D = {};
   const get = k => D[k] || (D[k] = Object.assign({ k }, EMPTY_AGG()));
   for (const f of S.flows) if (monthKey(f.ts) === mk) addAgg(get(dayKey(f.ts)), f);
-  for (const e of S.ledger) if (monthKey(e.ts) === mk) get(dayKey(e.ts)).opt += optionCash(e);
+  for (const x of flowPnl.ev) if (monthKey(x.ts) === mk) get(dayKey(x.ts)).opt += x.v;
   return Object.values(D).sort((a, b) => b.k.localeCompare(a.k));
 }
 const flowOpen = { m: new Set(), p: new Set() };
 function toggleMonth(t, k) { const s = flowOpen[t]; if (s.has(k)) s.delete(k); else s.add(k); renderFlows(); }
 
+let flowPnl = { ev: [] };
 function monthlyFlows() {
   const M = {};
   const get = k => M[k] || (M[k] = EMPTY_AGG());
   for (const f of S.flows) addAgg(get(monthKey(f.ts)), f);
-  for (const e of S.ledger) get(monthKey(e.ts)).opt += optionCash(e);
+  for (const x of flowPnl.ev) get(monthKey(x.ts)).opt += x.v;
   const keys = Object.keys(M).sort();
   if (!keys.length) return { rows: [], avg: null, full: 0 };
   const cur = monthKey(Date.now()), rows = [];
@@ -1388,7 +1484,12 @@ function monthlyFlows() {
 
 function renderFlows() {
   const box = $('mflow'); if (!box) return;
+  if ($('flow-src')) { $('flow-src').value = flowMode(); $('flow-src-note').textContent = tr(flowMode() === 'p2p' ? 'mf_src_note_p2p' : 'mf_src_note_tr'); }
   if (S.flowSync.msg && $('flow-status') && !flowBusy) $('flow-status').textContent = S.flowSync.msg;
+  flowPnl = pnlSummary();
+  for (const a of ASSETS) try { includedEntries(a); } catch (e) { }
+  const strat = pnlSummary(e => e._inc);
+  renderTurnover(flowPnl, strat);
   const { rows, avg, full } = monthlyFlows();
   const money = v => v ? fmtUsd(v, Math.abs(v) >= 100 ? 0 : 2) : '—';
   const signed = v => v ? '<span class="' + cls(v) + '">' + fmtSigned(v, Math.abs(v) >= 100 ? 0 : 2) + '</span>' : '—';
@@ -1432,14 +1533,35 @@ function renderFlows() {
   renderFlowList();
 }
 
+function renderTurnover(p, strat) {
+  const el = $('mflow-sum'); if (!el) return;
+  let inn = 0, out = 0;
+  for (const f of S.flows) if (countsInTotals(f)) { if (flowDir(f) === 'in') inn += flowUsd(f); else if (flowDir(f) === 'out') out += flowUsd(f); }
+  const m = v => fmtUsd(v, 2), sg = v => '<span class="' + cls(v) + '">' + fmtSigned(v, 2) + '</span>';
+  const row = (k, v, strong) => '<div class="row' + (strong ? ' strong' : '') + '"><span class="k">' + tr(k) + '</span><span class="v">' + v + '</span></div>';
+  let h = '<div class="sumbox">' +
+    row('sum_in', m(inn)) + row('sum_out', m(out)) + row('sum_net_in', sg(inn - out)) +
+    '<div class="sep"></div>' +
+    row('sum_win', p.win ? sg(p.win) : '—') + row('sum_loss', p.loss ? sg(p.loss) : '—') + row('sum_closed', sg(p.closed), true) +
+    row('sum_open', p.nOpen ? tr('sum_open_v', { u: sg(p.openPnl), v: m(p.openVal) }) : '—') +
+    row('sum_total', sg(p.closed + p.openPnl), true) +
+    '<div class="sep"></div>' +
+    row('sum_strat', sg(strat.closed + strat.openPnl), true) + '</div>';
+  if (p.approx) h += '<p class="note">' + tr('sum_approx') + '</p>';
+  if (p.noQuote) h += '<p class="note">' + tr('sum_noquote') + '</p>';
+  el.innerHTML = h;
+}
+
 function renderFlowList() {
   const el = $('flow-list'); if (!el) return;
-  const list = S.flows.filter(f => f.kind !== 'p2p').sort((a, b) => b.ts - a.ts);
+  const list = S.flows.filter(countsInTotals).sort((a, b) => b.ts - a.ts);
   const shown = flowsShowAll ? list : list.slice(0, 8);
   el.innerHTML = shown.map(f => {
-    const v = f.kind === 'out' ? -(f.usd || 0) : (f.usd || 0);
-    const what = tr(f.kind === 'out' ? 'mf_kind_out' : 'mf_kind_in');
-    const src = f.src === 'manual' ? tr('mf_src_manual') + (f.note ? ' · ' + esc(f.note) : '') : tr('mf_src_bybit') + (f.coin && !/^USD/.test(f.coin) ? ' · ' + fmtQty(f.qty) + ' ' + esc(f.coin) : '');
+    const dir = flowDir(f), v = dir === 'out' ? -flowUsd(f) : flowUsd(f);
+    const what = tr(dir === 'out' ? 'mf_kind_out' : 'mf_kind_in');
+    const src = f.src === 'manual' ? tr('mf_src_manual') + (f.note ? ' · ' + esc(f.note) : '')
+      : f.kind === 'p2p' ? tr('mf_p2p_rec', { q: fmtQty(f.qty), t: esc(f.token || 'USDT'), fiat: f.fiat && f.cur ? ' · ' + fmtNum(f.fiat, 2) + ' ' + esc(f.cur) : '' })
+      : tr('mf_src_bybit') + (f.coin && !/^USD/.test(f.coin) ? ' · ' + fmtQty(f.qty) + ' ' + esc(f.coin) : '');
     return '<div class="item"><div class="it"><span class="name">' + what + '</span><span class="' + cls(v) + '" style="font-weight:600;white-space:nowrap">' + fmtSigned(v, 2) + '</span></div>' +
       '<div class="is"><span>' + fmtDate(f.ts) + ', ' + src + '</span>' + (f.src === 'manual' ? '<a href="#" class="x" aria-label="✕" onclick="delFlow(\'' + esc(f.id) + '\');return false">✕</a>' : '<span></span>') + '</div></div>';
   }).join('') + (!flowsShowAll && list.length > 8 ? '<button class="btn small ghost" style="margin-top:8px" onclick="flowsShowAll=true;renderFlowList()">' + tr('mf_more', { n: list.length }) + '</button>' : '');
@@ -1618,6 +1740,7 @@ function autoFlows() {
   if (S.keys.bybit && now - Math.max(S.flowSync.tr || 0, S.flowSync.p2p || 0) > 30 * 60000) syncFlows(false);
   if ((S.keys.bybit || S.keys.deribit) && now - Math.max(S.lastSync.bybit || 0, S.lastSync.deribit || 0) > 6 * 3600000) syncExchanges().then(cloudSoon);
   if (cloudOn() && now - (S.cloud.last || 0) > 10 * 60000) cloudSync(false);
+  for (const a of ASSETS) if (a !== S.asset && !(S.delivery[a] && Object.keys(S.delivery[a]).length)) fetchDelivery(a).then(renderFlows);
 }
 </script>
 <script>
