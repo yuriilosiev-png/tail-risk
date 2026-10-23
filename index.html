@@ -368,7 +368,7 @@ body.light .bigline { color: var(--text); }
       <div class="status muted" id="sync-status"></div>
 
       <section class="block" style="margin-top:16px">
-        <h2><span data-i18n="mf_title">Поток по месяцам</span><small data-i18n="mf_sub">обе монеты, все биржи</small></h2>
+        <h2><span data-i18n="mf_title">Поток по месяцам</span><small data-i18n="mf_sub">USDT и др. монеты · опционы ETH и BTC</small></h2>
         <div id="mflow"></div>
         <div class="btns">
           <button class="btn ghost" onclick="openFlowManual('in')" data-i18n="mf_add_in">+ Завёл</button>
@@ -670,7 +670,7 @@ const I18N = {
     set_app: 'Приложение', lang_other: 'English', theme: 'Сменить тему', export: 'Экспорт данных', import: 'Импорт', clear: 'Удалить все сделки',
     clear_confirm: 'Удалить все сделки и циклы? Ключи и настройки останутся.',
     imported: 'Данные импортированы', import_err: 'Это не файл экспорта «Хвостового риска»',
-    connect_hint: 'Создай на бирже ключ только для чтения: без торговли, вывода и переводов.',
+    connect_hint: 'Создай на бирже ключ «Только чтение». Для Bybit отметь: Единый торговый аккаунт, Активы → Перевод с аккаунта, P2P → Ордера.',
     connect: 'Подключить', disconnect: 'Отключить', conn_wait: 'Проверяю ключ…',
     conn_enter: 'Введи ключ и секрет', conn_ok: 'Подключено. Права только на чтение.',
     conn_warn: 'Подключено, но ключ может торговать. Безопаснее пересоздать его только для чтения.',
@@ -775,7 +775,7 @@ const I18N = {
     set_app: 'App', lang_other: 'Русский', theme: 'Switch theme', export: 'Export data', import: 'Import', clear: 'Delete all trades',
     clear_confirm: 'Delete all trades and cycles? Keys and settings stay.',
     imported: 'Data imported', import_err: 'This is not a Tail Risk export file',
-    connect_hint: 'Create a read-only key on the exchange: no trading, withdrawals or transfers.',
+    connect_hint: 'Create a “Read-only” key on the exchange. For Bybit tick: Unified Trading Account, Assets → Account transfer, P2P → Orders.',
     connect: 'Connect', disconnect: 'Disconnect', conn_wait: 'Checking key…',
     conn_enter: 'Enter key and secret', conn_ok: 'Connected. Read-only permissions.',
     conn_warn: 'Connected, but the key can trade. Safer to recreate it as read-only.',
@@ -1133,7 +1133,7 @@ const FS_BASE = 'https://firestore.googleapis.com/v1/projects/' + FB.projectId +
 const FLOW_DEPTH = 180 * DAY;            // глубина первой загрузки: Bybit отдаёт P2P максимум за 180 дней
 
 Object.assign(I18N.ru, {
-  mf_title: 'Поток по месяцам', mf_sub: 'обе монеты, все биржи',
+  mf_title: 'Поток по месяцам', mf_sub: 'USDT и др. монеты · опционы ETH и BTC',
   mf_month: 'Месяц', mf_in: 'Завёл', mf_out: 'Вывел', mf_opt: 'Опционы', mf_avg: 'Среднее',
   mf_avg_note: 'Среднее за месяц — по {n} полным месяцам. Текущий и неполный первый месяц не входят.',
   mf_avg_note_cur: 'Полных месяцев пока нет — среднее по текущему.',
@@ -1144,7 +1144,9 @@ Object.assign(I18N.ru, {
   mf_sync: 'Обновить переводы', mf_add_in: '+ Завёл', mf_add_out: '− Вывел',
   mf_sync_run: 'Загружаю переводы и P2P…', mf_sync_done: 'Новых записей: {n}.',
   mf_sync_nokey: 'Для автозагрузки нужен ключ Bybit (Настройки → Ключи бирж). Можно записывать вручную.',
-  mf_err_tr: 'Переводы: {e}', mf_err_p2p: 'P2P: {e}',
+  mf_err_tr: 'Переводы: ошибка «{e}»', mf_err_p2p: 'P2P: ошибка «{e}»',
+  mf_st_tr: 'Переводы: найдено {seen}, на торговый счёт и обратно {m}, новых {k}',
+  mf_st_p2p: 'P2P: завершённых ордеров {seen}, новых: {k}',
   mf_list: 'Записи потока', mf_kind_in: 'Завёл', mf_kind_out: 'Вывел', mf_kind_p2p_buy: 'P2P покупка', mf_kind_p2p_sell: 'P2P продажа',
   mf_src_bybit: 'перевод Bybit', mf_src_manual: 'вручную', mf_more: 'Показать все ({n})',
   fm_title_in: 'Записать пополнение', fm_title_out: 'Записать вывод', fm_amt: 'Сумма, $', fm_date: 'Дата', fm_note: 'Заметка', fm_note_ph: 'например, P2P Bybit',
@@ -1162,7 +1164,7 @@ Object.assign(I18N.ru, {
   cl_deleted: 'Аккаунт и данные в облаке удалены.', cl_e_CREDENTIAL_TOO_OLD_LOGIN_AGAIN: 'нужно заново войти и сразу удалить',
 });
 Object.assign(I18N.en, {
-  mf_title: 'Cash flow by month', mf_sub: 'both coins, all exchanges',
+  mf_title: 'Cash flow by month', mf_sub: 'USDT & other coins · ETH and BTC options',
   mf_month: 'Month', mf_in: 'In', mf_out: 'Out', mf_opt: 'Options', mf_avg: 'Average',
   mf_avg_note: 'Monthly average over {n} full months. The current month and a partial first month are excluded.',
   mf_avg_note_cur: 'No full months yet — average of the current one.',
@@ -1173,7 +1175,9 @@ Object.assign(I18N.en, {
   mf_sync: 'Refresh transfers', mf_add_in: '+ Deposit', mf_add_out: '− Withdraw',
   mf_sync_run: 'Loading transfers and P2P…', mf_sync_done: 'New records: {n}.',
   mf_sync_nokey: 'Auto-loading needs a Bybit key (Settings → Exchange keys). You can add records manually.',
-  mf_err_tr: 'Transfers: {e}', mf_err_p2p: 'P2P: {e}',
+  mf_err_tr: 'Transfers: error “{e}”', mf_err_p2p: 'P2P: error “{e}”',
+  mf_st_tr: 'Transfers: found {seen}, to/from the trading account {m}, new {k}',
+  mf_st_p2p: 'P2P: completed orders {seen}, new: {k}',
   mf_list: 'Cash flow records', mf_kind_in: 'Deposit', mf_kind_out: 'Withdrawal', mf_kind_p2p_buy: 'P2P buy', mf_kind_p2p_sell: 'P2P sell',
   mf_src_bybit: 'Bybit transfer', mf_src_manual: 'manual', mf_more: 'Show all ({n})',
   fm_title_in: 'Record a deposit', fm_title_out: 'Record a withdrawal', fm_amt: 'Amount, $', fm_date: 'Date', fm_note: 'Note', fm_note_ph: 'e.g. Bybit P2P',
@@ -1235,7 +1239,7 @@ async function bybitPost(path, body) {
 // Bybit отдаёт окно не больше 7 дней, поэтому идём неделями.
 async function syncTransfers() {
   const now = Date.now(), from = S.flowSync.tr ? S.flowSync.tr - 2 * DAY : now - FLOW_DEPTH;
-  const out = [];
+  const out = []; out.seen = 0;
   for (let st = from; st < now; st += 7 * DAY) {
     const en = Math.min(now, st + 7 * DAY - 1);
     let cursor = '', page = 0;
@@ -1243,6 +1247,7 @@ async function syncTransfers() {
       const p = { startTime: String(st), endTime: String(en), limit: '50', status: 'SUCCESS' };
       if (cursor) p.cursor = cursor;
       const r = await bybitPrivate('/v5/asset/transfer/query-inter-transfer-list', p);
+      out.seen += (r.list || []).length;
       for (const x of r.list || []) {
         const to = x.toAccountType, fr = x.fromAccountType, q = parseFloat(x.amount);
         if (x.status && x.status !== 'SUCCESS') continue;
@@ -1261,10 +1266,10 @@ async function syncTransfers() {
 // Завершённые P2P-ордера (API доступно мерчантам; Bybit хранит 180 дней)
 async function syncP2P() {
   const now = Date.now(), from = Math.max(now - FLOW_DEPTH + DAY, S.flowSync.p2p ? S.flowSync.p2p - 2 * DAY : 0);
-  const out = [];
+  const out = []; out.seen = 0;
   for (let page = 1; page <= 50; page++) {
     const r = await bybitPost('/v5/p2p/order/simplifyList', { page, size: 30, status: 50, beginTime: String(from), endTime: String(now) });
-    const items = r.items || [];
+    const items = r.items || []; out.seen = r.count || out.seen + items.length;
     for (const x of items) {
       if (x.status !== undefined && Number(x.status) !== 50) continue;
       const price = parseFloat(x.price), fiat = parseFloat(x.amount);
@@ -1283,15 +1288,15 @@ async function syncFlows(manual) {
   const st = $('flow-status');
   if (!S.keys.bybit) { if (manual && st) st.textContent = tr('mf_sync_nokey'); flowBusy = false; return; }
   if (manual && st) st.textContent = tr('mf_sync_run');
-  let n = 0; const errs = [];
+  const parts = [];
   try {
-    try { const l = await syncTransfers(); n += addFlows(l); S.flowSync.tr = Date.now(); }
-    catch (e) { errs.push(tr('mf_err_tr', { e: e.message })); }
-    try { const l = await syncP2P(); n += addFlows(l); S.flowSync.p2p = Date.now(); }
-    catch (e) { errs.push(tr('mf_err_p2p', { e: e.message })); }
-    S.flowSync.err = errs.join(' · ');
+    try { const l = await syncTransfers(); const k = addFlows(l); S.flowSync.tr = Date.now(); parts.push(tr('mf_st_tr', { seen: l.seen, m: l.length, k })); }
+    catch (e) { parts.push(tr('mf_err_tr', { e: e.message })); }
+    try { const l = await syncP2P(); const k = addFlows(l); S.flowSync.p2p = Date.now(); parts.push(tr('mf_st_p2p', { seen: l.seen, m: l.length, k })); }
+    catch (e) { parts.push(tr('mf_err_p2p', { e: e.message })); }
+    S.flowSync.msg = fmtDateTime(Date.now()) + ' — ' + parts.join(' · ');
     saveFlows();
-    if (st && (manual || errs.length)) st.textContent = (manual ? tr('mf_sync_done', { n }) + ' ' : '') + S.flowSync.err;
+    if (st) st.textContent = S.flowSync.msg;
     renderFlows();
     cloudSoon();
   } finally { flowBusy = false; }
@@ -1357,6 +1362,7 @@ function monthlyFlows() {
 
 function renderFlows() {
   const box = $('mflow'); if (!box) return;
+  if (S.flowSync.msg && $('flow-status') && !flowBusy) $('flow-status').textContent = S.flowSync.msg;
   const { rows, avg, full } = monthlyFlows();
   const money = v => v ? fmtUsd(v, Math.abs(v) >= 100 ? 0 : 2) : '—';
   const signed = v => v ? '<span class="' + cls(v) + '">' + fmtSigned(v, Math.abs(v) >= 100 ? 0 : 2) + '</span>' : '—';
@@ -2436,9 +2442,10 @@ async function checkPerms(ex) {
     const r = await bybitPrivate('/v5/user/query-api', {});
     const p = r.permissions || {}, arr = k => Array.isArray(p[k]) ? p[k] : [];
     const w = arr('Wallet');
+    // Ключ «только чтение»: все права в нём — на просмотр (переводы, P2P, ордера). Вывод в таком ключе невозможен.
+    if (r.readOnly === 1 || r.readOnly === '1') return 'safe';
     if (w.includes('Withdraw') || w.includes('AccountTransfer') || w.includes('SubMemberTransfer')) return 'danger';
-    if (r.readOnly !== 1 || arr('ContractTrade').length || arr('Spot').length || arr('Options').length || arr('Derivatives').length) return 'warn';
-    return 'safe';
+    return 'warn';
   }
   const a = await deribitAuth();
   const sc = String(a.scope || '').toLowerCase().split(/\s+/);
