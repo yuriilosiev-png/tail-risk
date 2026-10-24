@@ -663,6 +663,7 @@ const I18N = {
     pos_lead2: 'Открытые позиции стоят <b>{val}</b> при вложенных {cost}. Каждая сторона фиксируется по своей цели.',
     leg_cost: 'вложено {cost}, сейчас {val}',
     depo_ex: 'Депозит с бирж: <b>{d}</b> ({parts}). Бюджет входа {b}.',
+    bal_split: 'торговый {u} + финансирование {f}', fund_err: 'счёт финансирования не прочитан ({e}), учтён только торговый',
     depo_manual: 'Ключи не подключены — депозит из поля ниже: <b>{d}</b>, бюджет входа {b}.',
     depo_ex_dyn: ' Обновляется при каждом входе в приложение.', depo_fixed: 'Фиксированный депозит: <b>{d}</b>, бюджет входа {b}.', depo_now: ' На биржах сейчас {e}.',
     set_depomode: 'Расчёт от депозита', mode_dynamic: 'Динамический — баланс бирж при каждом входе', mode_fixed: 'Фиксированный — сумма вручную',
@@ -768,6 +769,7 @@ const I18N = {
     pos_lead2: 'Open positions are worth <b>{val}</b> on {cost} invested. Each side exits at its own target.',
     leg_cost: 'cost {cost}, now {val}',
     depo_ex: 'Deposit from exchanges: <b>{d}</b> ({parts}). Entry budget {b}.',
+    bal_split: 'trading {u} + funding {f}', fund_err: 'funding account not read ({e}), trading account only',
     depo_manual: 'No keys connected — deposit from the field below: <b>{d}</b>, entry budget {b}.',
     depo_ex_dyn: ' Refreshed every time you open the app.', depo_fixed: 'Fixed deposit: <b>{d}</b>, entry budget {b}.', depo_now: ' On exchanges now: {e}.',
     set_depomode: 'Deposit for sizing', mode_dynamic: 'Dynamic — exchange balance on every open', mode_fixed: 'Fixed — amount set manually',
@@ -2504,6 +2506,22 @@ function renderPosition() {
 
 // ── Баланс бирж → депозит ──
 let balBusy = false;
+// Баланс счёта финансирования Bybit в долларах: стейблы 1:1, остальное по спотовой цене к USDT
+async function bybitFundUsd() {
+  const r = await bybitPrivate('/v5/asset/transfer/query-account-coins-balance', { accountType: 'FUND' });
+  let usd = 0;
+  for (const c of r.balance || []) {
+    const q = parseFloat(c.walletBalance) || 0; if (!q) continue;
+    const coin = String(c.coin).toUpperCase();
+    if (/^(USDT|USDC|USD|USDE|FDUSD|DAI)$/.test(coin)) { usd += q; continue; }
+    let px = S.spot[coin];
+    if (!px) {
+      try { const j = await getJson('https://api.bybit.com/v5/market/tickers?category=spot&symbol=' + coin + 'USDT'); px = parseFloat(j.result && j.result.list && j.result.list[0] && j.result.list[0].lastPrice) || 0; } catch (e) { px = 0; }
+    }
+    usd += q * px;
+  }
+  return usd;
+}
 async function fetchBalances(force) {
   if (balBusy) return; balBusy = true;
   try {
@@ -2512,12 +2530,15 @@ async function fetchBalances(force) {
       const prev = S.bal[ex];
       if (!force && prev && Date.now() - prev.ts < 30000) continue;   // при каждом входе — свежий баланс
       try {
-        let usd = 0;
+        let usd = 0, unified = null, fund = null, fundErr = '';
         if (ex === 'bybit') {
           const r = await bybitPrivate('/v5/account/wallet-balance', { accountType: 'UNIFIED' });
           const acc = (r.list || [])[0];
-          usd = parseFloat(acc && acc.totalEquity);
-          if (!isFinite(usd)) throw new Error('totalEquity');
+          unified = parseFloat(acc && acc.totalEquity);
+          if (!isFinite(unified)) throw new Error('totalEquity');
+          usd = unified;
+          // Счёт финансирования (Funding): туда приходят P2P-покупки. Ошибка здесь не ломает баланс торгового счёта.
+          try { fund = await bybitFundUsd(); usd += fund; } catch (e) { fundErr = e.message; }
         } else {
           const auth = await deribitAuth();
           for (const cur of ['BTC', 'ETH', 'USDC', 'USDT']) {
@@ -2528,7 +2549,9 @@ async function fetchBalances(force) {
             usd += eq * (px || 0);
           }
         }
-        S.bal[ex] = { usd, ts: Date.now() }; delete S.balErr[ex];
+        S.bal[ex] = { usd, ts: Date.now() };
+        if (unified !== null) { S.bal[ex].unified = unified; S.bal[ex].fund = fund; }
+        if (fundErr) S.balErr[ex] = tr('fund_err', { e: fundErr }); else delete S.balErr[ex];
       } catch (e) { S.balErr[ex] = e.message; }
     }
     lsSet('bal', S.bal);
@@ -2610,7 +2633,10 @@ function renderSettings() {
   $('cfg-split').value = S.cfg.split;
   const dep = deposit();
   $('cfg-depoMode').value = S.cfg.depoMode; depoModeUi();
-  const balTxt = ['bybit', 'deribit'].filter(ex => S.keys[ex] && S.bal[ex]).map(ex => exName(ex) + ' ' + fmtUsd(S.bal[ex].usd, 0)).join(', ');
+  const balTxt = ['bybit', 'deribit'].filter(ex => S.keys[ex] && S.bal[ex]).map(ex => {
+    const b = S.bal[ex];
+    return exName(ex) + ' ' + fmtUsd(b.usd, 0) + (b.fund ? ': ' + tr('bal_split', { u: fmtUsd(b.unified, 0), f: fmtUsd(b.fund, 0) }) : '');
+  }).join(', ');
   const errTxt = Object.keys(S.balErr).length ? ' ' + tr('depo_err', { e: Object.entries(S.balErr).map(([k, v]) => exName(k) + ': ' + v).join('; ') }) : '';
   $('depo-info').innerHTML = dep.src === 'fixed'
     ? tr('depo_fixed', { d: fmtUsd(dep.usd, 0), b: fmtUsd(budget(), 0) }) + (balTxt ? tr('depo_now', { e: balTxt }) : '')
