@@ -1924,16 +1924,18 @@ function withVirtualExpiries(asset, entries) {
   return out.sort((a, b) => a.ts - b.ts);
 }
 
-// ── Циклы по сторонам: путы и колы живут независимо ──
-// Цикл стороны — от первой покупки при нулевой позиции до полного выхода из неё.
+// ── Циклы: путы и колы живут независимо, и каждая экспирация — свой цикл ──
+// Цикл — от первой покупки стороны на эту дату экспирации до полного выхода (продажа или экспирация).
+// Истёкшая серия уходит в историю, даже если новая уже куплена.
 function buildCycles(asset) {
   const entries = withVirtualExpiries(asset, includedEntries(asset));
-  const cycles = [], cur = { P: null, C: null }, pos = { P: {}, C: {} };
+  const cycles = [], cur = {}, pos = {};
   for (const e of entries) {
-    const s = e.cp, k = legKey(e);
+    const s = e.cp + '|' + e.exp, k = legKey(e);
+    if (!pos[s]) pos[s] = {};
     if (e.side === 'buy') {
       if (e.virt && !cur[s]) continue;          // расчёт шорта вне цикла — не начало нового цикла
-      if (!cur[s]) cur[s] = { asset, side: s, start: e.ts, firstId: e.id, cost: 0, ret: 0, fees: 0, entries: [], open: true };
+      if (!cur[s]) cur[s] = { asset, side: e.cp, exp: e.exp, start: e.ts, firstId: e.id, cost: 0, ret: 0, fees: 0, entries: [], open: true };
       cur[s].cost += e.px * e.qty + e.fee;
       pos[s][k] = (pos[s][k] || 0) + e.qty;
     } else {
@@ -1948,7 +1950,7 @@ function buildCycles(asset) {
       cycles.push(c); cur[s] = null; pos[s] = {};
     }
   }
-  for (const s of SIDES) if (cur[s]) { cur[s].net = cur[s].ret - cur[s].cost; cycles.push(cur[s]); }
+  for (const s in cur) if (cur[s]) { cur[s].net = cur[s].ret - cur[s].cost; cycles.push(cur[s]); }
   cycles.sort((a, b) => a.start - b.start);
   for (const c of cycles) c.vol = cycleVol(c);
   return { cycles, entries };
@@ -1990,9 +1992,9 @@ function openLegs(asset, built) {
 // стороны → цена продажи; обратный Блэк–Шоулз даёт цену актива, при которой опцион столько стоит.
 function fixLevels(built, legs) {
   return legs.map(l => {
-    const c = built.cycles.find(x => x.open && x.side === l.cp);
+    const c = built.cycles.find(x => x.open && x.side === l.cp && x.exp === l.exp);
     if (!c || l.expired) return { leg: l, cycle: c, unit: null, spot: null };
-    const sideQty = legs.filter(x => x.cp === l.cp && !x.expired).reduce((s, x) => s + x.qty, 0);
+    const sideQty = legs.filter(x => x.cp === l.cp && x.exp === l.exp && !x.expired).reduce((s, x) => s + x.qty, 0);
     const need = S.cfg.tp * c.cost - c.ret;
     if (!(need > 0) || !(sideQty > 0)) return { leg: l, cycle: c, unit: null, spot: null };
     const unit = need / sideQty;
@@ -2004,7 +2006,7 @@ function fixLevels(built, legs) {
 function cycleValue(c, legs) {
   let v = 0;
   for (const l of legs) {
-    if (l.cp !== c.side) continue;
+    if (l.cp !== c.side || (c.exp && l.exp !== c.exp)) continue;
     if (l.expired) v += intrinsic(l.cp, l.strike, S.spot[l.asset] || 0) * l.qty;
     else if (l.q) v += l.q.bid * l.qty;
   }
@@ -2016,9 +2018,10 @@ function makePlan(asset) {
   const built = buildCycles(asset), legs = openLegs(asset, built), fx = fixLevels(built, legs);
   const st = dvolStats(S.dvol[asset]), rec = bestRec(asset);
   const sides = SIDES.map(s => {
-    const c = built.cycles.find(x => x.open && x.side === s);
+    // если открыто несколько серий стороны (разные экспирации) — берём самую свежую
+    const c = built.cycles.filter(x => x.open && x.side === s).sort((a, b) => b.start - a.start)[0];
     if (c) {
-      const f = fx.filter(x => x.leg.cp === s), hit = f.find(x => x.hit);
+      const f = fx.filter(x => x.leg.cp === s && x.leg.exp === c.exp), hit = f.find(x => x.hit);
       const val = cycleValue(c, legs), mult = c.cost > 0 ? (c.ret + val) / c.cost : 0;
       const state = hit ? 'fix' : f.every(x => x.leg.expired) ? 'settle' : 'work';
       return { side: s, state, cycle: c, fx: f, hit, val, mult };
@@ -2461,7 +2464,7 @@ function shotsSvg(rows) {
 
 // ── Баннер «что делать сейчас» ──
 function legCard(x, f, a) {
-  const l = f.leg, c = x.cycle, tp = S.cfg.tp;
+  const l = f.leg, c = f.cycle || x.cycle, tp = S.cfg.tp;   // цикл своей экспирации
   const lp = m => Math.max(0, Math.min(100, Math.log(Math.max(m, 0.01) / 0.1) / Math.log(tp / 0.1) * 100));
   const ticks = [1, 2, 5, 10].filter(m => m < tp);
   const track = '<div class="track"><div class="fill" style="width:' + lp(x.mult).toFixed(1) + '%"></div>' +
