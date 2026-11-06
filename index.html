@@ -1464,7 +1464,7 @@ function tradePnl(filterFn, addExchangeOnly) {
     if (Math.abs(L.qty) < 1e-9) continue;
     const em = expMs(L.exp);
     // Позиции с биржи загружены — сверяемся с ними
-    if (S.pos[L.exch] && !(em + 3600000 < now)) {
+    if (S.pos[L.exch] && !(em < now)) {
       const P = posOf(L.exch, L);
       if (!P) { S.orphans[L.k] = true; continue; }   // история неполная: на бирже такой позиции нет
       delete S.orphans[L.k]; seen.add(P);
@@ -1472,7 +1472,7 @@ function tradePnl(filterFn, addExchangeOnly) {
       open.push(L); continue;
     }
     if (S.orphans[L.k]) continue;                 // до экспирации биржа этой позиции не показывала — не придумываем расчёт
-    if (em + 3600000 < now) {                     // истёк, а записи о расчёте нет (шорты и OTM биржа не пишет)
+    if (em < now) {                               // истёк, а записи о расчёте нет (шорты и OTM биржа не пишет)
       const dp = (S.delivery[L.asset] || {})[L.exp], price = dp || klMid(L.asset, em);
       if (!dp) approx = true;
       ev.push({ ts: em, v: ((price ? intrinsic(L.cp, L.strike, price) : 0) - L.avg) * L.qty });
@@ -1885,13 +1885,15 @@ function bestRec(asset) {
 // входят, если раньше в стратегию попала покупка той же ноги. Ручная галочка главнее.
 function includedEntries(asset) {
   const list = S.ledger.filter(e => e.asset === asset).sort((a, b) => a.ts - b.ts);
-  const keys = new Set(), out = [];
+  const keys = new Set(), out = [], net = {};
   for (const e of list) {
+    const k = legKey(e), before = net[k] || 0;
+    net[k] = before + (e.side === 'buy' ? e.qty : -e.qty);
     let inc;
     if (e.id in S.incl) inc = S.incl[e.id];
     else if (e.ts < S.cfg.start) inc = false;
-    else if (e.side === 'buy') inc = !(e.spot > 0) || Math.abs(e.strike / e.spot - 1) * 100 >= S.cfg.minOtm;
-    else inc = keys.has(legKey(e));
+    else if (e.side === 'buy') inc = before >= -1e-9 && (!(e.spot > 0) || Math.abs(e.strike / e.spot - 1) * 100 >= S.cfg.minOtm);   // откуп шорта — не хвост
+    else inc = keys.has(k);
     e._inc = inc;
     if (inc) { out.push(e); if (e.side === 'buy') keys.add(legKey(e)); }
   }
@@ -1910,13 +1912,14 @@ function withVirtualExpiries(asset, entries) {
   }
   const out = entries.slice(), now = Date.now();
   for (const k in pos) {
-    if (pos[k] <= 1e-9) continue;
+    if (Math.abs(pos[k]) <= 1e-9) continue;
     const e = proto[k], em = expMs(e.exp);
-    if (!(em + 3600000 < now)) continue;
+    if (!(em < now)) continue;                    // истёк — закрываем сразу: цена поставки Deribit, пока её нет — текущая цена
     const dp = (S.delivery[asset] || {})[e.exp];
     const price = dp || S.spot[asset];
+    // лонг закрывается «экспирацией», шорт (если его отметили вручную) — откупом по внутренней стоимости
     out.push({ id: 'V' + k, virt: true, approx: !dp, exch: e.exch, src: 'auto', ts: em, asset, exp: e.exp, strike: e.strike, cp: e.cp,
-      side: 'expiry', qty: pos[k], px: price ? intrinsic(e.cp, e.strike, price) : 0, fee: 0, spot: price || 0 });
+      side: pos[k] > 0 ? 'expiry' : 'buy', qty: Math.abs(pos[k]), px: price ? intrinsic(e.cp, e.strike, price) : 0, fee: 0, spot: price || 0 });
   }
   return out.sort((a, b) => a.ts - b.ts);
 }
@@ -1929,6 +1932,7 @@ function buildCycles(asset) {
   for (const e of entries) {
     const s = e.cp, k = legKey(e);
     if (e.side === 'buy') {
+      if (e.virt && !cur[s]) continue;          // расчёт шорта вне цикла — не начало нового цикла
       if (!cur[s]) cur[s] = { asset, side: s, start: e.ts, firstId: e.id, cost: 0, ret: 0, fees: 0, entries: [], open: true };
       cur[s].cost += e.px * e.qty + e.fee;
       pos[s][k] = (pos[s][k] || 0) + e.qty;
@@ -2464,7 +2468,7 @@ function legCard(x, f, a) {
     ticks.map(m => '<div class="tick" style="left:' + lp(m).toFixed(1) + '%"></div>').join('') + '</div>' +
     '<div class="track-l"><span style="left:0">×0.1</span>' + ticks.map(m => '<span style="left:' + lp(m).toFixed(1) + '%">×' + m + '</span>').join('') + '<span style="left:100%">×' + tp + '</span></div>';
   let sell;
-  if (l.expired) sell = '<div class="sell"><span class="sk">' + tr('expired_wait', { t: fmtDateTime(expMs(l.exp) + 3600000) }) + '</span></div>';
+  if (l.expired) sell = '<div class="sell"><span class="sk">' + tr('expired_wait', { t: fmtDateTime(expMs(l.exp)) }) + '</span></div>';
   else if (f.hit) sell = '<div class="sell hit"><span class="sk">' + tr('fix_now') + '</span><span class="sv">' + fmtUsd(l.q.bid, 2) + '<small>' + tr('fix_now_sub', { q: fmtQty(l.qty), a }) + '</small></span></div>';
   else sell = '<div class="sell"><span class="sk">' + tr('sell_at') + '</span><span class="sv">' + (f.unit ? fmtUsd(f.unit, 2) + (l.exch === 'deribit' && f.coin ? ' <small>' + f.coin.toFixed(4) + ' ' + a + '</small>' : '') : '—') +
     '<small>' + (f.spot ? tr('sell_when', { a, s: l.cp === 'P' ? '≤' : '≥', p: fmtUsd(f.spot, 0) }) : tr('fix_unreach')) + '</small></span></div>';
