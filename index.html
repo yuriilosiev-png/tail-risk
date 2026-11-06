@@ -622,7 +622,7 @@ const I18N = {
     sell_at: 'Продать по', sell_when: '{a} сегодня {s} {p}', fix_unreach: 'недостижимо до экспирации',
     leg_meta: '{q} {a} на {ex}', bid_mark: 'бид {b}, mark {m}', iv_left: 'IV {iv}, до экспирации {n} дн.',
     fix_note: 'Уровень цены актива сдвигается со временем: по мере распада опциона для той же цены нужно движение сильнее. Пересчитывается при каждом открытии.',
-    expired_wait: 'Истёк, ждёт расчёта',
+    expired_wait: 'Истёк — расчёт по цене поставки после {t}',
     dvol_at: 'DVOL при входе', spot_at: 'Цена {a} при входе', opened: 'Открыто', closed: 'Закрыто',
     push_title: 'Уведомления о фиксации', push_off: 'Выключены.', push_enable: 'Включить уведомления',
     push_on: 'Включены. Слежу за уровнями: {n}.', push_web: 'Уведомления работают в Android-приложении. В браузере уровни видны только на экране.',
@@ -728,7 +728,7 @@ const I18N = {
     sell_at: 'Sell at', sell_when: '{a} today {s} {p}', fix_unreach: 'out of reach before expiry',
     leg_meta: '{q} {a} on {ex}', bid_mark: 'bid {b}, mark {m}', iv_left: 'IV {iv}, {n} days to expiry',
     fix_note: 'The underlying level drifts: as the option decays, a bigger move is needed for the same price. Recalculated each time you open the app.',
-    expired_wait: 'Expired, awaiting settlement',
+    expired_wait: 'Expired — settles at the delivery price after {t}',
     dvol_at: 'DVOL at entry', spot_at: '{a} at entry', opened: 'Opened', closed: 'Closed',
     push_title: 'Take-profit alerts', push_off: 'Off.', push_enable: 'Turn on alerts',
     push_on: 'On. Watching {n} levels.', push_web: 'Alerts work in the Android app. In a browser, levels show on screen only.',
@@ -1372,7 +1372,12 @@ async function fetchPositions() {
     } catch (e) { console.warn('[pos deribit]', e.message); }
   }
   lsSet('orphans', S.orphans);
+  // На бирже есть позиция, которой нет в загруженных сделках — значит, есть свежие сделки: подтягиваем
+  const known = new Set(S.ledger.map(legKey));
+  const missing = ['bybit', 'deribit'].some(ex => ((S.pos[ex] && S.pos[ex].list) || []).some(P => !known.has(legKey({ asset: P.asset, exp: P.iso, strike: P.strike, cp: P.cp, exch: ex }))));
+  if (missing && Date.now() - posSyncAt > 60000) { posSyncAt = Date.now(); syncExchanges().then(cloudSoon); }
 }
+let posSyncAt = 0;
 
 let flowBusy = false;
 async function syncFlows(manual) {
@@ -1802,7 +1807,8 @@ function autoFlows() {
   const now = Date.now();
   if (now - flowAutoAt < 60000) return; flowAutoAt = now;
   if (S.keys.bybit && now - Math.max(S.flowSync.tr || 0, S.flowSync.p2p || 0) > 30 * 60000) syncFlows(false);
-  if ((S.keys.bybit || S.keys.deribit) && now - Math.max(S.lastSync.bybit || 0, S.lastSync.deribit || 0) > 6 * 3600000) syncExchanges().then(cloudSoon);
+  // Сделки: при каждом открытии (не чаще раза в 5 минут) — новые покупки видны сразу
+  if ((S.keys.bybit || S.keys.deribit) && now - Math.max(S.lastSync.bybit || 0, S.lastSync.deribit || 0) > 5 * 60000) syncExchanges().then(cloudSoon);
   if (cloudOn() && now - (S.cloud.last || 0) > 10 * 60000) cloudSync(false);
   if ((S.keys.bybit || S.keys.deribit) && now - Math.max((S.pos.bybit || {}).ts || 0, (S.pos.deribit || {}).ts || 0) > 5 * 60000) fetchPositions().then(renderFlows);
   for (const a of ASSETS) if (a !== S.asset && !(S.delivery[a] && Object.keys(S.delivery[a]).length)) fetchDelivery(a).then(renderFlows);
@@ -2458,7 +2464,7 @@ function legCard(x, f, a) {
     ticks.map(m => '<div class="tick" style="left:' + lp(m).toFixed(1) + '%"></div>').join('') + '</div>' +
     '<div class="track-l"><span style="left:0">×0.1</span>' + ticks.map(m => '<span style="left:' + lp(m).toFixed(1) + '%">×' + m + '</span>').join('') + '<span style="left:100%">×' + tp + '</span></div>';
   let sell;
-  if (l.expired) sell = '<div class="sell"><span class="sk">' + tr('expired_wait') + '</span></div>';
+  if (l.expired) sell = '<div class="sell"><span class="sk">' + tr('expired_wait', { t: fmtDateTime(expMs(l.exp) + 3600000) }) + '</span></div>';
   else if (f.hit) sell = '<div class="sell hit"><span class="sk">' + tr('fix_now') + '</span><span class="sv">' + fmtUsd(l.q.bid, 2) + '<small>' + tr('fix_now_sub', { q: fmtQty(l.qty), a }) + '</small></span></div>';
   else sell = '<div class="sell"><span class="sk">' + tr('sell_at') + '</span><span class="sv">' + (f.unit ? fmtUsd(f.unit, 2) + (l.exch === 'deribit' && f.coin ? ' <small>' + f.coin.toFixed(4) + ' ' + a + '</small>' : '') : '—') +
     '<small>' + (f.spot ? tr('sell_when', { a, s: l.cp === 'P' ? '≤' : '≥', p: fmtUsd(f.spot, 0) }) : tr('fix_unreach')) + '</small></span></div>';
