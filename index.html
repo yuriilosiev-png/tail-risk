@@ -369,7 +369,7 @@ body.light .bigline { color: var(--text); }
     <div class="screen" id="scr-money">
       <div class="hero">
         <h1 id="flow-net">—</h1>
-        <p class="lead" data-i18n="flow_lead">Чистый результат стратегии: всё полученное минус всё потраченное, с комиссиями.</p>
+        <p class="lead" id="flow-lead">Чистый результат стратегии: всё полученное минус всё потраченное, с комиссиями.</p>
       </div>
       <div class="trio">
         <div><div class="l" data-i18n="flow_out">Потрачено</div><div class="n loss" id="flow-out">—</div></div>
@@ -629,6 +629,7 @@ const I18N = {
     push_err: 'Не удалось включить уведомления: {e}', push_wait: 'Включаю…',
     alert_put: 'Фикс пута {k}: {a} ≤ {p}', alert_call: 'Фикс колла {k}: {a} ≥ {p}',
     flow_lead: 'Чистый результат стратегии: всё полученное минус всё потраченное, с комиссиями.',
+    flow_lead_now: 'Итог стратегии в моменте: закрытые циклы {closed}, открытые позиции {open} (вложено {oc}, стоят {ov} по маркировке, как в Bybit). Комиссии учтены.',
     flow_out: 'Потрачено', flow_in: 'Получено', flow_open: 'В позиции', flow_fees: 'Комиссии за всё время',
     sync: 'Загрузить сделки с бирж', sync_run: 'Загружаю сделки…', sync_done: 'Готово, новых сделок: {n}.',
     sync_nokeys: 'Подключи ключ биржи в настройках или добавляй сделки вручную.', sync_err: '{ex}: {e}',
@@ -660,7 +661,7 @@ const I18N = {
     slot_title: '{Side} не открыты', slot_buy: 'Купить {q} {a}: страйк {k}, {exp}, {ex}, аск {ask} — итого около {cost}.',
     slot_wait: 'Не докупаю: вола выше средней за год.',
     fix_now: 'Цель достигнута — продай по бид', fix_now_sub: '{q} {a}, лимитом по биду',
-    pos_lead2: 'Открытые позиции стоят <b>{val}</b> при вложенных {cost}. Каждая сторона фиксируется по своей цели.',
+    pos_lead2: 'Открытые позиции стоят <b>{val}</b> при вложенных {cost} — сейчас {pnl} (по маркировке, с комиссиями). Каждая сторона фиксируется по своей цели.',
     leg_cost: 'вложено {cost}, сейчас {val}',
     depo_ex: 'Депозит с бирж: <b>{d}</b> ({parts}). Бюджет входа {b}.',
     bal_split: 'торговый {u} + финансирование {f}', fund_err: 'счёт финансирования не прочитан ({e}), учтён только торговый',
@@ -735,6 +736,7 @@ const I18N = {
     push_err: 'Could not turn on alerts: {e}', push_wait: 'Turning on…',
     alert_put: 'Put {k} take-profit: {a} ≤ {p}', alert_call: 'Call {k} take-profit: {a} ≥ {p}',
     flow_lead: 'Strategy net result: everything received minus everything spent, fees included.',
+    flow_lead_now: 'Strategy result right now: closed cycles {closed}, open positions {open} ({oc} invested, worth {ov} at mark, as on Bybit). Fees included.',
     flow_out: 'Spent', flow_in: 'Received', flow_open: 'In position', flow_fees: 'Fees, all time',
     sync: 'Load trades from exchanges', sync_run: 'Loading trades…', sync_done: 'Done, new trades: {n}.',
     sync_nokeys: 'Connect an exchange key in Settings or add trades manually.', sync_err: '{ex}: {e}',
@@ -766,7 +768,7 @@ const I18N = {
     slot_title: '{Side} not open', slot_buy: 'Buy {q} {a}: strike {k}, {exp}, {ex}, ask {ask} — about {cost} in total.',
     slot_wait: 'Not rebuying: vol is above its 1-year average.',
     fix_now: 'Target reached — sell at bid', fix_now_sub: '{q} {a}, limit at the bid',
-    pos_lead2: 'Open positions are worth <b>{val}</b> on {cost} invested. Each side exits at its own target.',
+    pos_lead2: 'Open positions are worth <b>{val}</b> on {cost} invested — {pnl} right now (at mark, fees included). Each side exits at its own target.',
     leg_cost: 'cost {cost}, now {val}',
     depo_ex: 'Deposit from exchanges: <b>{d}</b> ({parts}). Entry budget {b}.',
     bal_split: 'trading {u} + funding {f}', fund_err: 'funding account not read ({e}), trading account only',
@@ -2008,10 +2010,12 @@ function cycleValue(c, legs) {
   for (const l of legs) {
     if (l.cp !== c.side || (c.exp && l.exp !== c.exp)) continue;
     if (l.expired) v += intrinsic(l.cp, l.strike, S.spot[l.asset] || 0) * l.qty;
-    else if (l.q) v += l.q.bid * l.qty;
+    else if (l.q) v += legNow(l) * l.qty;
   }
   return v;
 }
+// Цена ноги «в моменте»: маркировка биржи (как нереализованный P&L в Bybit), без неё — бид
+function legNow(l) { return l.q ? (l.q.mark || l.q.bid || 0) : 0; }
 
 // ── План: что делать сейчас по каждой стороне ──
 function makePlan(asset) {
@@ -2498,7 +2502,7 @@ function renderPosition() {
     const cost = open.reduce((s, x) => s + x.cycle.cost, 0), val = open.reduce((s, x) => s + x.cycle.ret + x.val, 0);
     const m = cost > 0 ? val / cost : 0;
     h1.textContent = fmtMult(m); h1.className = m >= 1 ? 'cheap' : '';
-    $('pos-lead').innerHTML = tr('pos_lead2', { val: fmtUsd(val, 2), cost: fmtUsd(cost, 2) });
+    $('pos-lead').innerHTML = tr('pos_lead2', { val: fmtUsd(val, 2), cost: fmtUsd(cost, 2), pnl: '<b class="' + cls(val - cost) + '">' + fmtSigned(val - cost, 2) + '</b>' });
     $('pos-chips').innerHTML = open.map(x => '<span class="chip">' + sideName(x.side, true) + ' ' + tr('opened_on', { d: fmtDate(x.cycle.start) }) + '</span>').join('');
   } else {
     h1.textContent = tr('pos_none_title'); h1.className = '';
@@ -2580,12 +2584,19 @@ function renderMoney() {
   }
   setText('flow-out', fmtUsd(out, out >= 100 ? 0 : 2));
   setText('flow-in', fmtUsd(inn, inn >= 100 ? 0 : 2));
-  setText('flow-net', fmtSigned(inn - out, 2), cls(inn - out));
   setText('flow-fees', fmtUsd(fees, 2));
-  const open = built.cycles.find(c => c.open);
-  let openVal = 0;
-  if (open) for (const l of openLegs(a, built)) if (l.q) openVal += l.q.bid * l.qty;
-  setText('flow-openval', open ? fmtUsd(openVal, openVal >= 100 ? 0 : 2) : '—');
+  // Итог в моменте = закрытые циклы + открытые позиции по текущей цене минус вложенное в них
+  const legsNow = openLegs(a, built), openC = built.cycles.filter(c => c.open);
+  const closedNet = built.cycles.filter(c => !c.open).reduce((s, c) => s + c.net, 0);
+  const openCost = openC.reduce((s, c) => s + c.cost - c.ret, 0);
+  const openVal = openC.reduce((s, c) => s + cycleValue(c, legsNow), 0);
+  const openPnl = openVal - openCost, total = closedNet + openPnl;
+  setText('flow-net', fmtSigned(total, 2), cls(total));
+  setText('flow-openval', openC.length ? fmtUsd(openVal, openVal >= 100 ? 0 : 2) : '—');
+  const fl = $('flow-lead');
+  if (fl) fl.innerHTML = openC.length
+    ? tr('flow_lead_now', { closed: fmtSigned(closedNet, 2), open: '<b class="' + cls(openPnl) + '">' + fmtSigned(openPnl, 2) + '</b>', oc: fmtUsd(openCost, 2), ov: fmtUsd(openVal, 2) })
+    : tr('flow_lead');
 
   includedEntries(a);   // проставляет e._inc
   const list = S.ledger.filter(e => e.asset === a).sort((x, y) => y.ts - x.ts);
